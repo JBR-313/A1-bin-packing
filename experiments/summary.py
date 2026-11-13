@@ -43,8 +43,8 @@ def table(df: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
-def section_a(df: pd.DataFrame, mode: str) -> list[str]:
-    out = [f"## Experiment A — exact vs greedy (`{mode}` mode)", ""]
+def gives_up_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Experiment A: per (algorithm, dist), how far each method got (timeout rule applied)."""
     rows = []
     for (alg, dist), g in df.groupby(["algorithm", "dist"], sort=False):
         # timeout rule: an n counts as finished only if NO rep timed out
@@ -62,35 +62,50 @@ def section_a(df: pd.DataFrame, mode: str) -> list[str]:
             "median runtime at largest answered n (s)":
                 round(g[g.n == last].runtime_s.median(), 4) if last is not None else "-",
         })
-    out += ["### Where each method gives up", "",
-            "An n counts as finished only if every rep finished within the time limit "
-            "(one timeout → that n is `gave up`, larger n are not run). "
-            "`-` under *gave up* means it never timed out up to *largest n tried*; "
-            "DP is capped at n = 24 by memory (2^24 states), not by time.", "",
-            table(pd.DataFrame(rows)), ""]
+    return pd.DataFrame(rows)
 
+
+def exact_agreement(df: pd.DataFrame) -> dict:
+    """Experiment A: instances proven optimal by 2+ exact methods, and disagreements."""
     ex = df[df.algorithm.isin(["exhaustive", "dp", "mip"]) & (df.status == "ok")]
     per = ex.groupby(["dist", "n", "seed"]).agg(methods=("algorithm", "nunique"),
                                                  distinct=("num_bins", "nunique"))
     multi = per[per.methods >= 2]
-    out += ["### Do the exact methods agree?", "",
-            f"Instances solved to proven optimality by 2+ exact methods: **{len(multi)}**, "
-            f"disagreements: **{int((multi.distinct > 1).sum())}** "
-            f"(n range {multi.index.get_level_values('n').min()}–"
-            f"{multi.index.get_level_values('n').max()}).", ""]
+    ns = multi.index.get_level_values("n")
+    return {"instances": len(multi), "disagreements": int((multi.distinct > 1).sum()),
+            "n_min": int(ns.min()), "n_max": int(ns.max())}
 
+
+def ffd_ratio_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Experiment A: FFD bins / OPT on instances where OPT is known."""
     f = df[(df.algorithm == "ffd") & df.opt.notna()].copy()
     f["ratio"] = f.num_bins / f.opt
     r = f.groupby("dist").agg(instances=("ratio", "size"),
                               optimal_share=("ratio", lambda s: f"{(s == 1).mean():.1%}"),
                               median=("ratio", "median"), max=("ratio", "max")).reset_index()
     r[["median", "max"]] = r[["median", "max"]].round(3)
-    out += ["### FFD / OPT (instances where OPT is known)", "", table(r), ""]
+    return r
+
+
+def section_a(df: pd.DataFrame, mode: str) -> list[str]:
+    out = [f"## Experiment A — exact vs greedy (`{mode}` mode)", ""]
+    out += ["### Where each method gives up", "",
+            "An n counts as finished only if every rep finished within the time limit "
+            "(one timeout → that n is `gave up`, larger n are not run). "
+            "`-` under *gave up* means it never timed out up to *largest n tried*; "
+            "DP is capped at n = 24 by memory (2^24 states), not by time.", "",
+            table(gives_up_table(df)), ""]
+    a = exact_agreement(df)
+    out += ["### Do the exact methods agree?", "",
+            f"Instances solved to proven optimality by 2+ exact methods: **{a['instances']}**, "
+            f"disagreements: **{a['disagreements']}** "
+            f"(n range {a['n_min']}–{a['n_max']}).", ""]
+    out += ["### FFD / OPT (instances where OPT is known)", "", table(ffd_ratio_table(df)), ""]
     return out
 
 
-def section_b(df: pd.DataFrame, mode: str) -> list[str]:
-    out = [f"## Experiment B — heuristics at scale (`{mode}` mode)", ""]
+def b_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Experiment B: median bins / lower bound and runtime per (dist, algorithm, n)."""
     d = df.copy()
     d["bins/L"] = d.num_bins / d.lower_bound
     g = d.groupby(["dist", "algorithm", "n"], sort=False).agg(
@@ -98,12 +113,18 @@ def section_b(df: pd.DataFrame, mode: str) -> list[str]:
         bins_over_L=("bins/L", "median"), runtime_s=("runtime_s", "median")).reset_index()
     g["bins_over_L"] = g.bins_over_L.round(4)
     g["runtime_s"] = g.runtime_s.round(6)
-    out += ["Median over reps. `bins/L` = bins used / lower bound ceil(sum/C).", "", table(g), ""]
+    return g
+
+
+def section_b(df: pd.DataFrame, mode: str) -> list[str]:
+    out = [f"## Experiment B — heuristics at scale (`{mode}` mode)", ""]
+    out += ["Median over reps. `bins/L` = bins used / lower bound ceil(sum/C).", "",
+            table(b_table(df)), ""]
     return out
 
 
-def section_c(df: pd.DataFrame, mode: str) -> list[str]:
-    out = [f"## Experiment C — 3D packing and loading (`{mode}` mode)", ""]
+def c_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Experiment C: median bins, bins / L, fill rate, runtime per (dist, algorithm, n)."""
     c = df[df.experiment == "C"].copy()
     c["bins_over_L"] = c.num_bins / c.lower_bound
     g = c.groupby(["dist", "algorithm", "n"], sort=False).agg(
@@ -113,6 +134,33 @@ def section_c(df: pd.DataFrame, mode: str) -> list[str]:
         runtime_s=("runtime_s", "median")).reset_index()
     for col, k in [("bins_over_L", 3), ("fill_rate", 3), ("runtime_s", 6)]:
         g[col] = g[col].round(k)
+    return g
+
+
+def box_table(df: pd.DataFrame) -> pd.DataFrame | None:
+    """Experiment C-box: void ratio, share within the 50% rule, splits, runtime, tries."""
+    b = df[df.experiment == "C-box"].copy()
+    if not len(b):
+        return None
+    b["void"] = 1 - b.fill_rate
+    r = b.groupby("algorithm", sort=False).agg(
+        orders=("rep", "nunique"),
+        void_median=("void", "median"), void_mean=("void", "mean"),
+        share_void_le_50=("void", lambda s: f"{(s <= cfg.VOID_LIMIT).mean():.1%}"),
+        share_split=("num_bins", lambda s: f"{(s > 1).mean():.1%}"),
+        runtime_ms_median=("runtime_s", lambda s: s.median() * 1000)).reset_index()
+    tries = b.extra_json.map(lambda e: json.loads(e)["tries"])
+    r["tries_mean"] = r.algorithm.map(tries.groupby(b.algorithm).mean())
+    for col in ("void_median", "void_mean"):
+        r[col] = r[col].round(3)
+    r["runtime_ms_median"] = r.runtime_ms_median.round(3)
+    r["tries_mean"] = r.tries_mean.round(2)
+    return r
+
+
+def section_c(df: pd.DataFrame, mode: str) -> list[str]:
+    out = [f"## Experiment C — 3D packing and loading (`{mode}` mode)", ""]
+    g = c_table(df)
     out += ["### Bins, fill rate and runtime per n", "",
             f"Container {cfg.C3_CONTAINER}, item sides {cfg.C3_DIM_RANGE}, median over reps. "
             "`fill_rate` = item volume / (bins × container volume). "
@@ -139,21 +187,8 @@ def section_c(df: pd.DataFrame, mode: str) -> list[str]:
                 "rows is the algorithm; the gap between `ep_volume_norot` and 0% is rotation.",
                 "", table(rot), ""]
 
-    b = df[df.experiment == "C-box"].copy()
-    if len(b):
-        b["void"] = 1 - b.fill_rate
-        r = b.groupby("algorithm", sort=False).agg(
-            orders=("rep", "nunique"),
-            void_median=("void", "median"), void_mean=("void", "mean"),
-            share_void_le_50=("void", lambda s: f"{(s <= cfg.VOID_LIMIT).mean():.1%}"),
-            share_split=("num_bins", lambda s: f"{(s > 1).mean():.1%}"),
-            runtime_ms_median=("runtime_s", lambda s: s.median() * 1000)).reset_index()
-        tries = b.extra_json.map(lambda e: json.loads(e)["tries"])
-        r["tries_mean"] = r.algorithm.map(tries.groupby(b.algorithm).mean())
-        for col in ("void_median", "void_mean"):
-            r[col] = r[col].round(3)
-        r["runtime_ms_median"] = r.runtime_ms_median.round(3)
-        r["tries_mean"] = r.tries_mean.round(2)
+    r = box_table(df)
+    if r is not None:
         out += ["### Box choice per order", "",
                 f"{cfg.NUM_ORDERS} orders of {cfg.ORDER_ITEMS[0]}–{cfg.ORDER_ITEMS[1]} items "
                 f"(sides {cfg.ORDER_DIM_RANGE}), catalog {cfg.BOX_CATALOG}. "

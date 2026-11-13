@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>From Packing to Loading — Group A1</title>
+<meta name="description" content="Naive vs better vs practical bin packing: measured results, 1D to 3D with loading rules.">
+<style>
+:root {
+  --bg: #fbfbfa; --fg: #1c1d1f; --muted: #5d6168; --line: #e3e4e6; --card: #ffffff;
+  --accent: #1f6feb; --accent-soft: #e8f0fe; --code: #f1f2f4;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #111214; --fg: #e8e9eb; --muted: #a0a4ab; --line: #2a2c30; --card: #18191c;
+          --accent: #6ea8ff; --accent-soft: #1b2738; --code: #222428; }
+  figure img { background: #fff; }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+       font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 56px 16px 28px; border-bottom: 1px solid var(--line); }
+.wrap { max-width: 980px; margin: 0 auto; }
+h1 { font-size: clamp(28px, 4.5vw, 42px); line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.02em; }
+.sub { color: var(--muted); margin: 0 0 4px; }
+nav { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line);
+      overflow-x: auto; white-space: nowrap; }
+nav .wrap { display: flex; gap: 18px; padding: 10px 16px; }
+nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+nav a:hover { color: var(--accent); }
+main { padding: 0 16px 64px; }
+section { padding-top: 44px; }
+h2 { font-size: 26px; letter-spacing: -0.01em; margin: 0 0 12px; }
+h3 { font-size: 17px; margin: 26px 0 8px; }
+p, li { max-width: 76ch; }
+a { color: var(--accent); }
+code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 0.92em; }
+.note { color: var(--muted); font-size: 14px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 26px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.tile .v { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.tile .l { color: var(--muted); font-size: 13px; line-height: 1.4; margin-top: 4px; }
+figure { margin: 22px 0; }
+figure img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; display: block; }
+figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; max-width: 76ch; }
+.viewer iframe { width: 100%; border: 1px solid var(--line); border-radius: 0 0 8px 8px; background: #fff; display: block; }
+.vhead { display: flex; justify-content: space-between; gap: 12px; align-items: center;
+         background: var(--accent-soft); border: 1px solid var(--line); border-bottom: 0;
+         border-radius: 8px 8px 0 0; padding: 8px 12px; font-size: 14px; font-weight: 600; }
+.vhead a { font-weight: 500; white-space: nowrap; }
+.tw { overflow-x: auto; margin: 14px 0; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--card); }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-weight: 600; color: var(--muted); }
+tbody tr:last-child td { border-bottom: 0; }
+footer { border-top: 1px solid var(--line); padding: 20px 16px; color: var(--muted); font-size: 13px; }
+@media (max-width: 640px) { .viewer iframe { height: 420px !important; } }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<p class="sub">DCCS309 Algorithms · Group A1 · 전재형, 정진형, 박은혁</p>
+<h1>From Packing to Loading</h1>
+<p class="sub">Naive vs better vs practical bin packing — what actually changes as the problem grows.</p>
+<div class="tiles"><div class="tile"><div class="v">n = 11</div><div class="l">exhaustive search gives up (60 s limit)</div></div><div class="tile"><div class="v">0 / 302</div><div class="l">disagreements between exact methods</div></div><div class="tile"><div class="v">99.7%</div><div class="l">of instances where FFD is already optimal</div></div><div class="tile"><div class="v">+202%</div><div class="l">more bins for 3D Naive than Extreme Point</div></div><div class="tile"><div class="v">+24.7% → +15.9%</div><div class="l">cost of heavy-below, just by loading heaviest first</div></div><div class="tile"><div class="v">47% vs 87%</div><div class="l">median empty space: box recommendation vs naive box</div></div></div>
+</div></header>
+<nav><div class="wrap"><a href="#exp-a">Exact</a><a href="#exp-b">Greedy at scale</a><a href="#exp-c">3D</a><a href="#loading">Loading rules</a><a href="#boxes">Box choice</a><a href="#method">Method</a><a href="https://github.com/JBR-313/A1-bin-packing">GitHub ↗</a></div></nav>
+<main><div class="wrap">
+
+<section id="overview">
+<h2>What we compare</h2>
+<p>Parcel packing asks: <em>how few boxes do we need for these items?</em> We give the
+<strong>same randomly generated items</strong> (fixed seeds) to several algorithms and watch how
+<strong>runtime</strong> and <strong>solution quality</strong> split apart as the number of items
+<em>n</em> grows. We do it three times: 1D (sizes only), 3D (real boxes), and 3D with
+real loading rules, ending with a practical question — which shipping box should one order use?</p>
+<div class="tw"><table><thead><tr><th></th><th>1D</th><th>3D</th></tr></thead><tbody><tr><td>Naive</td><td>Exhaustive search (all n! orders × First Fit), Next Fit</td><td>Layer stacking in arrival order, no rotation</td></tr><tr><td>Better (course)</td><td>Bitmask DP, First Fit, Best Fit, FFD</td><td>Extreme Point heuristic + sort rules</td></tr><tr><td>Practical</td><td>MIP solver (OR-Tools + SCIP)</td><td>Box recommendation from a box catalog</td></tr></tbody></table></div>
+<p class="note">Every number on this page is generated by
+<code>python -m experiments.build_site</code> from the default-mode CSVs (5 reps per setting,
+60 s time limit) — the same numbers as <a href="https://github.com/JBR-313/A1-bin-packing/blob/main/results/summary.md">summary.md</a>.</p>
+</section>
+<section id="exp-a">
+<h2>1 · Exact answers: where does “try everything” give up?</h2>
+<p><strong>Question.</strong> Three methods always find the optimal number of bins. How large can
+<em>n</em> get before each one runs out of time? And how close does a fast greedy method (FFD) get?</p>
+<ul>
+<li><strong>Exhaustive search</strong> tries every one of the n! item orders and packs each with First
+Fit. It is optimal because the order “items of bin 1, then bin 2, …” of an optimal packing is one of
+the orders tried. No pruning — it really tries them all.</li>
+<li><strong>Bitmask DP</strong> keeps, for every subset of items, the best (bins used, fill of the last
+bin). That is 2<sup>n</sup> states instead of n! orders.</li>
+<li><strong>MIP</strong> hands the problem to an industrial solver (SCIP) as an integer program.</li>
+<li><strong>FFD</strong> (First Fit Decreasing) sorts items largest first and puts each into the first
+bin with room. Not guaranteed optimal, but fast.</li>
+</ul>
+<figure><a href="results/figures/exp_a_runtime_default.png"><img src="results/figures/exp_a_runtime_default.png" alt="Runtime versus n for the exact methods and FFD" loading="lazy"></a><figcaption><strong>How to read:</strong> log–log runtime per method; an ✕ on the dashed line means the method hit the 60 s limit at that n. Each panel is one item-size distribution (uniform 1–100, small 1–25, large 34–100; bin capacity 100).</figcaption></figure>
+<p><strong>Result.</strong> Exhaustive search gives up at n = 11 in every distribution (n! explodes).
+The DP reaches n = 24 in every distribution (about 31–33 s) — we
+stop it there because 2<sup>24</sup> states already need about half a gigabyte of memory.
+MIP gives up at n = 100 on uniform sizes and n = 100
+on large sizes, but proves the optimum for small items up to n = 200
+(the largest n we tried): difficulty depends on the data, not only on n. FFD stays under a
+millisecond.</p>
+<div class="tw"><table><thead><tr><th>algorithm</th><th>dist</th><th>largest n, all reps proven optimal</th><th>largest n, all reps answered</th><th>gave up at n</th><th>largest n tried</th><th>median runtime at largest answered n (s)</th></tr></thead><tbody><tr><td>Exhaustive (all orders)</td><td>uniform</td><td>10</td><td>10</td><td>11</td><td>11</td><td>4.5901</td></tr><tr><td>Bitmask DP</td><td>uniform</td><td>24</td><td>24</td><td>-</td><td>24</td><td>33.0787</td></tr><tr><td>MIP (OR-Tools SCIP)</td><td>uniform</td><td>20</td><td>50</td><td>100</td><td>100</td><td>58.5147</td></tr><tr><td>FFD</td><td>uniform</td><td>-</td><td>200</td><td>-</td><td>200</td><td>0.0003</td></tr><tr><td>Exhaustive (all orders)</td><td>small</td><td>10</td><td>10</td><td>11</td><td>11</td><td>3.7847</td></tr><tr><td>Bitmask DP</td><td>small</td><td>24</td><td>24</td><td>-</td><td>24</td><td>30.6221</td></tr><tr><td>MIP (OR-Tools SCIP)</td><td>small</td><td>200</td><td>200</td><td>-</td><td>200</td><td>0.3968</td></tr><tr><td>FFD</td><td>small</td><td>-</td><td>200</td><td>-</td><td>200</td><td>0.0003</td></tr><tr><td>Exhaustive (all orders)</td><td>large</td><td>10</td><td>10</td><td>11</td><td>11</td><td>4.893</td></tr><tr><td>Bitmask DP</td><td>large</td><td>24</td><td>24</td><td>-</td><td>24</td><td>31.0634</td></tr><tr><td>MIP (OR-Tools SCIP)</td><td>large</td><td>22</td><td>50</td><td>100</td><td>100</td><td>58.3241</td></tr><tr><td>FFD</td><td>large</td><td>-</td><td>200</td><td>-</td><td>200</td><td>0.0003</td></tr></tbody></table></div>
+<p><strong>Cross-check.</strong> On 302 instances (n = 4–24)
+at least two exact methods proved the optimum; they disagreed <strong>0</strong>
+times. A single disagreement would have stopped the experiment as a bug.</p>
+<figure><a href="results/figures/exp_a_ffd_ratio_default.png"><img src="results/figures/exp_a_ffd_ratio_default.png" alt="FFD bins divided by optimal bins" loading="lazy"></a><figcaption><strong>How to read:</strong> FFD’s bins ÷ the proven optimum, median (solid) and worst (dotted). 1.0 means FFD was optimal.</figcaption></figure>
+<p>FFD matched the optimum on 99.7% of the instances where the optimum is known; its worst
+case was 1.1× optimal. The theory only promises ≤ 11/9·OPT + 6/9, so on random items FFD
+does far better than its worst case — but that is a statement about <em>these</em> distributions.</p>
+<div class="tw"><table><thead><tr><th>dist</th><th>instances</th><th>FFD optimal</th><th>median ratio</th><th>worst ratio</th></tr></thead><tbody><tr><td>large</td><td>111</td><td>100.0%</td><td>1</td><td>1</td></tr><tr><td>small</td><td>130</td><td>100.0%</td><td>1</td><td>1</td></tr><tr><td>uniform</td><td>110</td><td>99.1%</td><td>1</td><td>1.1</td></tr></tbody></table></div>
+</section>
+<section id="exp-b">
+<h2>2 · Greedy at scale: 10,000 items in milliseconds</h2>
+<p><strong>Question.</strong> For large n no exact method finishes. How good are the greedy
+heuristics, and does a time-limited MIP still help?</p>
+<ul>
+<li><strong>Next Fit</strong> keeps one open bin (≤ 2 × optimal). <strong>First Fit</strong> /
+<strong>Best Fit</strong> try all open bins (≤ 1.7 × optimal). <strong>FFD</strong> sorts first
+(≤ 11/9 × optimal + 6/9).</li>
+<li>Quality is measured against the lower bound L = ⌈total size ÷ capacity⌉ (no packing can beat it),
+so 1.00 = provably optimal.</li>
+<li>MIP gets 10 s per run and is not run above n = 1,000 (its model has n × bins variables).</li>
+</ul>
+<figure><a href="results/figures/exp_b_bins_over_lb_default.png"><img src="results/figures/exp_b_bins_over_lb_default.png" alt="Bins over lower bound versus n" loading="lazy"></a><figcaption><strong>How to read:</strong> median bins ÷ lower bound; lower is better, 1.0 is optimal.</figcaption></figure>
+<figure><a href="results/figures/exp_b_runtime_default.png"><img src="results/figures/exp_b_runtime_default.png" alt="Runtime versus n for heuristics" loading="lazy"></a><figcaption><strong>How to read:</strong> median runtime, log–log.</figcaption></figure>
+<p><strong>Result.</strong> At n = 10,000 FFD needs
+1.006× L (uniform), 1.000× L (small), 1.127× L (large), in about
+35 ms. Next Fit is clearly worse; First Fit and Best Fit sit in between.
+The MIP solves small cases, but within 10 s it finds no answer at all from n = 100 on uniform items —
+so at scale the heuristics win on both time and quality.</p>
+<h3>Largest n</h3>
+<div class="tw"><table><thead><tr><th>dist</th><th>algorithm</th><th>bins / L</th><th>runtime (s)</th></tr></thead><tbody><tr><td>uniform</td><td>Next Fit</td><td>1.325</td><td>0.001659</td></tr><tr><td>uniform</td><td>First Fit</td><td>1.0241</td><td>0.02685</td></tr><tr><td>uniform</td><td>Best Fit</td><td>1.0148</td><td>0.007767</td></tr><tr><td>uniform</td><td>FFD</td><td>1.0059</td><td>0.029724</td></tr><tr><td>small</td><td>Next Fit</td><td>1.088</td><td>0.001012</td></tr><tr><td>small</td><td>First Fit</td><td>1.0008</td><td>0.025672</td></tr><tr><td>small</td><td>Best Fit</td><td>1.0008</td><td>0.004127</td></tr><tr><td>small</td><td>FFD</td><td>1</td><td>0.027445</td></tr><tr><td>large</td><td>Next Fit</td><td>1.3549</td><td>0.001537</td></tr><tr><td>large</td><td>First Fit</td><td>1.1357</td><td>0.028396</td></tr><tr><td>large</td><td>Best Fit</td><td>1.1322</td><td>0.011246</td></tr><tr><td>large</td><td>FFD</td><td>1.1268</td><td>0.035181</td></tr></tbody></table></div>
+<h3>MIP with a 10 s limit</h3>
+<div class="tw"><table><thead><tr><th>dist</th><th>n</th><th>status</th><th>bins / L</th><th>runtime (s)</th></tr></thead><tbody><tr><td>uniform</td><td>10</td><td>ok</td><td>1.1667</td><td>0.007542</td></tr><tr><td>uniform</td><td>100</td><td>timeout</td><td></td><td>10.074613</td></tr><tr><td>small</td><td>10</td><td>ok</td><td>1</td><td>0.003001</td></tr><tr><td>small</td><td>100</td><td>ok</td><td>1</td><td>0.064589</td></tr><tr><td>small</td><td>1000</td><td>timeout</td><td></td><td>10.766957</td></tr><tr><td>large</td><td>10</td><td>ok</td><td>1.1429</td><td>0.010688</td></tr><tr><td>large</td><td>100</td><td>feasible,timeout</td><td>1.1884</td><td>10.129804</td></tr></tbody></table></div>
+<p class="note"><code>feasible</code> = answer found but not proven optimal; <code>timeout</code> = no
+answer within the limit. Our MIP is the textbook assignment model, which is weak; stronger
+formulations (arc-flow, column generation) scale much further.</p>
+</section>
+<section id="exp-c">
+<h2>3 · 3D: real boxes</h2>
+<p><strong>Question.</strong> Items now have width, depth and height. How much does a smarter
+placement rule save over simply stacking items as they arrive?</p>
+<ul>
+<li><strong>3D Naive</strong> fills a row along x, then a new row behind it, then a new layer on top
+(as tall as the tallest item in the layer), then a new bin. It never goes back to fill gaps and
+never rotates items.</li>
+<li><strong>Extreme Point (EP)</strong> sorts items (by volume, height or base area) and keeps a list of
+candidate corners in every open bin. Each item goes to the lowest, back-most corner where it fits,
+trying all 6 rotations. It goes back to fill gaps.</li>
+<li>Container 100×100×100, item sides 5–50, four item shapes: uniform, flat, long, mixed.</li>
+</ul>
+<figure class="viewer"><div class="vhead"><span>Animation: same 60 items, two recipes</span><a href="results/html/anim_naive_vs_ep_default.html" target="_blank" rel="noopener">Open full screen ↗</a></div><iframe src="results/html/anim_naive_vs_ep_default.html" title="Animation: same 60 items, two recipes" loading="lazy" style="height:620px"></iframe><figcaption>Press <strong>▶ Play</strong>. Items drop in the order each algorithm places them (Naive: arrival order; EP: largest first). Colour = weight. Drag to rotate, scroll to zoom.</figcaption></figure>
+<figure><a href="results/figures/exp_c_bins_over_lb_default.png"><img src="results/figures/exp_c_bins_over_lb_default.png" alt="3D bins over lower bound" loading="lazy"></a><figcaption><strong>How to read:</strong> median bins ÷ volume lower bound; lower is better.</figcaption></figure>
+<p><strong>Result.</strong> Over all 100
+instances, 3D Naive used <strong>+202%</strong> more bins than EP. Is that just rotation?
+Running the same EP <em>without</em> rotation costs only +10.3% — so most of the gap is the
+algorithm (going back to fill gaps), not rotation. The three EP sort rules (volume, height, base
+area) differ by only 2.5% in total bins.</p>
+<div class="tw"><table><thead><tr><th>compared with EP (rotation on)</th><th>dist</th><th>instances</th><th>bins_ep_volume</th><th>bins_variant</th><th>extra bins %</th><th>instances with more bins</th></tr></thead><tbody><tr><td>EP, sort by volume, no rotation</td><td>flat</td><td>25</td><td>86</td><td>102</td><td>18.6</td><td>64%</td></tr><tr><td>EP, sort by volume, no rotation</td><td>long</td><td>25</td><td>40</td><td>44</td><td>10</td><td>16%</td></tr><tr><td>EP, sort by volume, no rotation</td><td>mixed</td><td>25</td><td>78</td><td>84</td><td>7.7</td><td>24%</td></tr><tr><td>EP, sort by volume, no rotation</td><td>uniform</td><td>25</td><td>116</td><td>123</td><td>6</td><td>28%</td></tr><tr><td>EP, sort by volume, no rotation</td><td>all</td><td>100</td><td>320</td><td>353</td><td>10.3</td><td>33%</td></tr><tr><td>3D Naive (layers)</td><td>flat</td><td>25</td><td>86</td><td>156</td><td>81.4</td><td>80%</td></tr><tr><td>3D Naive (layers)</td><td>long</td><td>25</td><td>40</td><td>192</td><td>380</td><td>92%</td></tr><tr><td>3D Naive (layers)</td><td>mixed</td><td>25</td><td>78</td><td>295</td><td>278.2</td><td>96%</td></tr><tr><td>3D Naive (layers)</td><td>uniform</td><td>25</td><td>116</td><td>325</td><td>180.2</td><td>96%</td></tr><tr><td>3D Naive (layers)</td><td>all</td><td>100</td><td>320</td><td>968</td><td>202.5</td><td>91%</td></tr></tbody></table></div>
+<h3>Largest n = 500</h3>
+<div class="tw"><table><thead><tr><th>dist</th><th>algorithm</th><th>bins</th><th>L</th><th>bins / L</th><th>fill rate</th><th>runtime (s)</th></tr></thead><tbody><tr><td>uniform</td><td>3D Naive (layers)</td><td>37</td><td>11</td><td>3.364</td><td>0.288</td><td>0.000779</td></tr><tr><td>uniform</td><td>EP, sort by volume, no rotation</td><td>13</td><td>11</td><td>1.182</td><td>0.822</td><td>0.246339</td></tr><tr><td>uniform</td><td>EP, sort by volume</td><td>12</td><td>11</td><td>1.091</td><td>0.883</td><td>1.156232</td></tr><tr><td>uniform</td><td>EP, sort by height</td><td>13</td><td>11</td><td>1.182</td><td>0.822</td><td>0.891095</td></tr><tr><td>uniform</td><td>EP, sort by base area</td><td>13</td><td>11</td><td>1.182</td><td>0.822</td><td>0.878147</td></tr><tr><td>uniform</td><td>EP + support 70%</td><td>13</td><td>11</td><td>1.182</td><td>0.822</td><td>1.171209</td></tr><tr><td>uniform</td><td>EP + support + heavy-below</td><td>14</td><td>11</td><td>1.273</td><td>0.774</td><td>1.232446</td></tr><tr><td>uniform</td><td>EP heaviest-first + support + heavy-below</td><td>14</td><td>11</td><td>1.273</td><td>0.763</td><td>1.140229</td></tr><tr><td>flat</td><td>3D Naive (layers)</td><td>17</td><td>8</td><td>2.125</td><td>0.418</td><td>0.000959</td></tr><tr><td>flat</td><td>EP, sort by volume, no rotation</td><td>10</td><td>8</td><td>1.25</td><td>0.709</td><td>0.663059</td></tr><tr><td>flat</td><td>EP, sort by volume</td><td>9</td><td>8</td><td>1.125</td><td>0.788</td><td>2.225521</td></tr><tr><td>flat</td><td>EP, sort by height</td><td>9</td><td>8</td><td>1.125</td><td>0.788</td><td>1.478881</td></tr><tr><td>flat</td><td>EP, sort by base area</td><td>9</td><td>8</td><td>1.25</td><td>0.763</td><td>2.175946</td></tr><tr><td>flat</td><td>EP + support 70%</td><td>10</td><td>8</td><td>1.25</td><td>0.711</td><td>2.390838</td></tr><tr><td>flat</td><td>EP + support + heavy-below</td><td>11</td><td>8</td><td>1.375</td><td>0.658</td><td>2.466672</td></tr><tr><td>flat</td><td>EP heaviest-first + support + heavy-below</td><td>10</td><td>8</td><td>1.25</td><td>0.711</td><td>2.251125</td></tr><tr><td>long</td><td>3D Naive (layers)</td><td>21</td><td>3</td><td>7</td><td>0.102</td><td>0.000933</td></tr><tr><td>long</td><td>EP, sort by volume, no rotation</td><td>4</td><td>3</td><td>1.333</td><td>0.563</td><td>1.983811</td></tr><tr><td>long</td><td>EP, sort by volume</td><td>3</td><td>3</td><td>1</td><td>0.719</td><td>5.326446</td></tr><tr><td>long</td><td>EP, sort by height</td><td>3</td><td>3</td><td>1</td><td>0.719</td><td>6.740941</td></tr><tr><td>long</td><td>EP, sort by base area</td><td>3</td><td>3</td><td>1</td><td>0.719</td><td>6.193906</td></tr><tr><td>long</td><td>EP + support 70%</td><td>3</td><td>3</td><td>1</td><td>0.681</td><td>5.806113</td></tr><tr><td>long</td><td>EP + support + heavy-below</td><td>4</td><td>3</td><td>1.333</td><td>0.539</td><td>4.926638</td></tr><tr><td>long</td><td>EP heaviest-first + support + heavy-below</td><td>4</td><td>3</td><td>1.333</td><td>0.563</td><td>5.074126</td></tr><tr><td>mixed</td><td>3D Naive (layers)</td><td>34</td><td>7</td><td>4.857</td><td>0.198</td><td>0.000682</td></tr><tr><td>mixed</td><td>EP, sort by volume, no rotation</td><td>8</td><td>7</td><td>1.143</td><td>0.78</td><td>0.365381</td></tr><tr><td>mixed</td><td>EP, sort by volume</td><td>8</td><td>7</td><td>1.143</td><td>0.809</td><td>1.265697</td></tr><tr><td>mixed</td><td>EP, sort by height</td><td>8</td><td>7</td><td>1.143</td><td>0.809</td><td>1.078417</td></tr><tr><td>mixed</td><td>EP, sort by base area</td><td>8</td><td>7</td><td>1.143</td><td>0.809</td><td>1.270316</td></tr><tr><td>mixed</td><td>EP + support 70%</td><td>8</td><td>7</td><td>1.143</td><td>0.8</td><td>1.504871</td></tr><tr><td>mixed</td><td>EP + support + heavy-below</td><td>9</td><td>7</td><td>1.286</td><td>0.747</td><td>1.533889</td></tr><tr><td>mixed</td><td>EP heaviest-first + support + heavy-below</td><td>9</td><td>7</td><td>1.286</td><td>0.764</td><td>1.593264</td></tr></tbody></table></div>
+<figure class="viewer"><div class="vhead"><span>3D viewer: 100 items, every bin</span><a href="results/html/exp_c_naive_vs_ep_default.html" target="_blank" rel="noopener">Open full screen ↗</a></div><iframe src="results/html/exp_c_naive_vs_ep_default.html" title="3D viewer: 100 items, every bin" loading="lazy" style="height:620px"></iframe><figcaption>Final packings of the same 100 items (all bins shown, four per row). Hover an item to see its size and weight.</figcaption></figure>
+<figure><a href="results/figures/exp_c_runtime_default.png"><img src="results/figures/exp_c_runtime_default.png" alt="3D runtime" loading="lazy"></a><figcaption><strong>How to read:</strong> median runtime, log–log. EP is much slower than Naive because it checks many candidate positions: up to 6.7 s (median) at n = 500 in pure Python, versus well under a millisecond for Naive.</figcaption></figure>
+</section>
+<section id="loading">
+<h2>4 · From packing to loading: rules cost boxes</h2>
+<p><strong>Question.</strong> Real loading has rules. What does obeying them cost?</p>
+<ul>
+<li><strong>Support</strong>: an item above the floor needs at least
+70% of its bottom resting on other items — nothing hangs in the air.</li>
+<li><strong>Heavy-below</strong>: an item may only rest on items at least as heavy. This is our
+simplified stand-in for <em>load-bearing</em> limits used in practice (how much weight a box can carry),
+see Bortfeldt &amp; Wäscher (2013).</li>
+<li><strong>Heaviest first</strong>: same two rules, but items are sorted by weight instead of volume,
+so heavy items take the floor before light ones.</li>
+</ul>
+<figure><a href="results/figures/exp_c_constraint_cost_default.png"><img src="results/figures/exp_c_constraint_cost_default.png" alt="Extra bins caused by loading constraints" loading="lazy"></a><figcaption><strong>How to read:</strong> extra bins compared with EP without rules, on the same instances (sum of bins with ÷ sum without − 1).</figcaption></figure>
+<p><strong>Result.</strong> Support alone costs <strong>+5.0%</strong> bins.
+Adding heavy-below raises it to <strong>+24.7%</strong>. Simply loading
+the heaviest items first, with exactly the same rules, brings it down to
+<strong>+15.9%</strong> — lower in every item shape.
+Support hurts flat items most; heavy-below hurts flat items most.</p>
+<div class="tw"><table><thead><tr><th>rules</th><th>dist</th><th>instances</th><th>bins_ep_volume</th><th>bins_variant</th><th>extra bins %</th><th>instances with more bins</th></tr></thead><tbody><tr><td>EP + support 70%</td><td>flat</td><td>25</td><td>86</td><td>93</td><td>8.1</td><td>28%</td></tr><tr><td>EP + support 70%</td><td>long</td><td>25</td><td>40</td><td>42</td><td>5</td><td>8%</td></tr><tr><td>EP + support 70%</td><td>mixed</td><td>25</td><td>78</td><td>81</td><td>3.8</td><td>12%</td></tr><tr><td>EP + support 70%</td><td>uniform</td><td>25</td><td>116</td><td>120</td><td>3.4</td><td>16%</td></tr><tr><td>EP + support 70%</td><td>all</td><td>100</td><td>320</td><td>336</td><td>5</td><td>16%</td></tr><tr><td>EP + support + heavy-below</td><td>flat</td><td>25</td><td>86</td><td>115</td><td>33.7</td><td>92%</td></tr><tr><td>EP + support + heavy-below</td><td>long</td><td>25</td><td>40</td><td>52</td><td>30</td><td>48%</td></tr><tr><td>EP + support + heavy-below</td><td>mixed</td><td>25</td><td>78</td><td>96</td><td>23.1</td><td>72%</td></tr><tr><td>EP + support + heavy-below</td><td>uniform</td><td>25</td><td>116</td><td>136</td><td>17.2</td><td>72%</td></tr><tr><td>EP + support + heavy-below</td><td>all</td><td>100</td><td>320</td><td>399</td><td>24.7</td><td>71%</td></tr><tr><td>EP heaviest-first + support + heavy-below</td><td>flat</td><td>25</td><td>86</td><td>104</td><td>20.9</td><td>72%</td></tr><tr><td>EP heaviest-first + support + heavy-below</td><td>long</td><td>25</td><td>40</td><td>44</td><td>10</td><td>16%</td></tr><tr><td>EP heaviest-first + support + heavy-below</td><td>mixed</td><td>25</td><td>78</td><td>90</td><td>15.4</td><td>48%</td></tr><tr><td>EP heaviest-first + support + heavy-below</td><td>uniform</td><td>25</td><td>116</td><td>133</td><td>14.7</td><td>56%</td></tr><tr><td>EP heaviest-first + support + heavy-below</td><td>all</td><td>100</td><td>320</td><td>371</td><td>15.9</td><td>48%</td></tr></tbody></table></div>
+<figure class="viewer"><div class="vhead"><span>Animation: no rules vs heaviest first + rules</span><a href="results/html/anim_constraints_default.html" target="_blank" rel="noopener">Open full screen ↗</a></div><iframe src="results/html/anim_constraints_default.html" title="Animation: no rules vs heaviest first + rules" loading="lazy" style="height:620px"></iframe><figcaption>Colour = weight (dark = heavy). On the right, no item ever rests on a lighter one and nothing overhangs by more than 30%.</figcaption></figure>
+<h3>Is 70% a magic number?</h3>
+<p>No — it is our assumption, so we also ran 50% and 90% on the same instances. The cost grows
+steadily: +2.5% at 50%, +5.0% at
+70%, +8.1% at 90%.</p>
+<div class="tw"><table><thead><tr><th>support threshold</th><th>dist</th><th>instances</th><th>bins_ep_volume</th><th>bins_variant</th><th>extra bins %</th><th>instances with more bins</th></tr></thead><tbody><tr><td>EP + support 50%</td><td>all</td><td>100</td><td>320</td><td>328</td><td>2.5</td><td>8%</td></tr><tr><td>EP + support 70%</td><td>all</td><td>100</td><td>320</td><td>336</td><td>5</td><td>16%</td></tr><tr><td>EP + support 90%</td><td>all</td><td>100</td><td>320</td><td>346</td><td>8.1</td><td>26%</td></tr></tbody></table></div>
+<figure class="viewer"><div class="vhead"><span>3D viewer: rules on / off (100 items)</span><a href="results/html/exp_c_constraints_default.html" target="_blank" rel="noopener">Open full screen ↗</a></div><iframe src="results/html/exp_c_constraints_default.html" title="3D viewer: rules on / off (100 items)" loading="lazy" style="height:620px"></iframe><figcaption>Four final packings of the same items: no rules, support, support + heavy-below, and the same rules loaded heaviest first.</figcaption></figure>
+</section>
+<section id="boxes">
+<h2>5 · Practical: which box should this order go in?</h2>
+<p><strong>Question.</strong> An online order of 3–15 items arrives;
+we have 6 box sizes. Too big a box wastes material — Korean rules on excessive
+packaging aim for at most 50% empty space.</p>
+<ul>
+<li><strong>Naive box choice</strong>: the smallest box with enough total volume, stacked in arrival
+order without rotation; if it does not fit, try the next box.</li>
+<li><strong>Box recommendation</strong>: try boxes from small to large; in each, run EP with all three sort
+rules and rotation (a “multi-start”); take the first box that holds the whole order.</li>
+<li>Inspired by the idea behind CJ Logistics’ LoIS O’Pack; our items and catalog are synthetic, so our
+numbers are <em>not</em> comparable with theirs.</li>
+</ul>
+<figure><a href="results/figures/exp_c_void_hist_default.png"><img src="results/figures/exp_c_void_hist_default.png" alt="Void ratio histogram" loading="lazy"></a><figcaption><strong>How to read:</strong> how empty the chosen box(es) are for each of 200 orders; left of the dashed line meets the 50% rule.</figcaption></figure>
+<p><strong>Result.</strong> The recommendation leaves a median of <strong>47%</strong>
+empty space (naive: 87%) and meets the 50% rule for
+<strong>55.0%</strong> of orders (naive: 0.5%). It takes about
+0.5 ms per order including all attempts. The naive rule often fails even in the
+largest box and has to split the order (27.5% of orders).</p>
+<div class="tw"><table><thead><tr><th>algorithm</th><th>orders</th><th>median void</th><th>mean void</th><th>void ≤ 50%</th><th>split into &gt;1 box</th><th>ms per order</th><th>packing attempts</th></tr></thead><tbody><tr><td>Box recommendation</td><td>200</td><td>0.47</td><td>0.466</td><td>55.0%</td><td>0.0%</td><td>0.488</td><td>2.24</td></tr><tr><td>Naive box choice</td><td>200</td><td>0.867</td><td>0.843</td><td>0.5%</td><td>27.5%</td><td>0.071</td><td>2.84</td></tr></tbody></table></div>
+<figure class="viewer"><div class="vhead"><span>3D viewer: two orders, naive vs recommended box</span><a href="results/html/exp_c_boxes_default.html" target="_blank" rel="noopener">Open full screen ↗</a></div><iframe src="results/html/exp_c_boxes_default.html" title="3D viewer: two orders, naive vs recommended box" loading="lazy" style="height:560px"></iframe><figcaption>Two orders where the recommendation chose a smaller box. Panel titles show box size and void ratio.</figcaption></figure>
+</section>
+<section id="method">
+<h2>How we measured</h2>
+<ul>
+<li>Same instance for every algorithm: items come from a fixed seed per (distribution, n, repetition).</li>
+<li>5 repetitions per setting; we report medians. Time limit 60 s per run; if any repetition times out,
+that n counts as “gave up” and larger n are skipped.</li>
+<li>Runtime covers the algorithm call only (<code>time.perf_counter</code>). Exhaustive search and DP run in
+a separate process that is killed at the limit. MIP time includes building the model; box
+recommendation time includes all attempts.</li>
+<li>Every answer is checked: each item exactly once, no overflow / overlap / item outside the box,
+and no rule violations when rules are on.</li>
+<li>All algorithms are pure Python except the MIP solver (C++).</li>
+</ul>
+<h3>Limitations</h3>
+<ul>
+<li>Random, synthetic items; real parcels are more regular.</li>
+<li>Extreme Point is a simplified version of Crainic, Perboli &amp; Tadei (2008).</li>
+<li>No load-bearing strength, centre of gravity, fragility or delivery-order rules.</li>
+</ul>
+<p class="note">Code, tests and raw CSVs: <a href="https://github.com/JBR-313/A1-bin-packing">https://github.com/JBR-313/A1-bin-packing</a>. Parts of the code and text were
+written with the help of Claude (Anthropic); the team reviewed everything, and every number here was
+produced by the code in the repository.</p>
+</section>
+</div></main>
+<footer><div class="wrap">Generated 2026-11-14 from default-mode results ·
+<a href="https://github.com/JBR-313/A1-bin-packing/blob/main/results/summary.md">summary.md</a> · <a href="https://github.com/JBR-313/A1-bin-packing">source</a></div></footer>
+</body>
+</html>
