@@ -139,7 +139,7 @@ def c_table(df: pd.DataFrame) -> pd.DataFrame:
 
 def box_table(df: pd.DataFrame) -> pd.DataFrame | None:
     """Experiment C-box: void ratio, share within the 50% rule, splits, runtime, tries."""
-    b = df[df.experiment == "C-box"].copy()
+    b = df[(df.experiment == "C-box") & df.algorithm.isin(["box_recommend", "box_naive"])].copy()
     if not len(b):
         return None
     b["void"] = 1 - b.fill_rate
@@ -156,6 +156,34 @@ def box_table(df: pd.DataFrame) -> pd.DataFrame | None:
     r["runtime_ms_median"] = r.runtime_ms_median.round(3)
     r["tries_mean"] = r.tries_mean.round(2)
     return r
+
+
+MULTI = ["box_recommend", "box_recommend_volume", "box_recommend_height", "box_recommend_area"]
+
+
+def multistart_table(df: pd.DataFrame) -> pd.DataFrame | None:
+    """Multi-start (all sort rules) vs the recommendation with ONE sort rule, same orders."""
+    b = df[(df.experiment == "C-box") & df.algorithm.isin(MULTI)].copy()
+    if b.algorithm.nunique() < 2:
+        return None
+    b["void"] = 1 - b.fill_rate
+    b["box_volume"] = b.extra_json.map(lambda e: json.loads(e)["box_volume"])
+    b["tries"] = b.extra_json.map(lambda e: json.loads(e)["tries"])
+    multi = b[b.algorithm == "box_recommend"].set_index("rep").box_volume
+    rows = []
+    for alg in MULTI:
+        g = b[b.algorithm == alg].set_index("rep")
+        rows.append({
+            "method": alg, "sort rules": "all 3" if alg == "box_recommend" else alg.split("_")[-1],
+            "void_median": round(g.void.median(), 3),
+            "share_void_le_50": f"{(g.void <= cfg.VOID_LIMIT).mean():.1%}",
+            "tries_mean": round(g.tries.mean(), 2),
+            "orders_multistart_smaller": "-" if alg == "box_recommend"
+            else int((multi < g.box_volume.reindex(multi.index)).sum()),
+            "orders_multistart_larger": "-" if alg == "box_recommend"
+            else int((multi > g.box_volume.reindex(multi.index)).sum()),
+        })
+    return pd.DataFrame(rows)
 
 
 def section_c(df: pd.DataFrame, mode: str) -> list[str]:
@@ -197,6 +225,15 @@ def section_c(df: pd.DataFrame, mode: str) -> list[str]:
                 "(multi-start cost; included in runtime).", "", table(r), "",
                 "Not comparable with CJ Logistics' published figures (different items and "
                 "catalog).", ""]
+    ms = multistart_table(df)
+    if ms is not None:
+        out += ["### Multi-start vs a single sort rule", "",
+                "Same orders. The recommendation tries every sort rule in a box before moving to a "
+                "bigger box (multi-start); the other rows use only one rule. "
+                "`orders_multistart_smaller` = orders where multi-start chose a box with less "
+                "volume than that single rule. `_larger` must be 0 by construction (multi-start also "
+                "tries that rule in every box, so it stops at the same box or a smaller one); it is "
+                "kept as a check.", "", table(ms), ""]
     return out
 
 

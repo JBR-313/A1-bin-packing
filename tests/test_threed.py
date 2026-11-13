@@ -392,3 +392,42 @@ def test_multistart_hand_example():
         ((30, 20, 15), "volume", "fail"),
         ((30, 20, 15), "height", "ok")]
     assert br.recommend(items, CATALOG, rules=("volume",)).extra["box"] > 1  # one rule: bigger box
+
+
+def test_box_search_animation_ends_in_final_result(tmp_path):
+    from packing.viz.animate_boxes import (TRACES_PER_PANEL, build_box_search, panel_states,
+                                           write_box_search)
+    from packing.viz.view3d import bin_offset
+    from experiments import config as cfg
+    items = gen_order(18, cfg.BASE_SEED, cfg.ORDER_ITEMS, cfg.ORDER_DIM_RANGE, cfg.C3_WEIGHT_RANGE)
+    nv = br.naive_box(items, CATALOG, trace=True)
+    rec = br.recommend(items, CATALOG, trace=True)
+    fig = build_box_search([("o", items, nv, rec)], "t")
+    last = fig.frames[-1]
+    for k, res in enumerate((nv, rec)):
+        dims = res.extra["box_dims"]
+        want = set()
+        for p in res.placements:
+            dx, dy = bin_offset(p.bin_id, dims)
+            want.add((p.x + dx, p.y + dy, p.z, p.w, p.d, p.h))
+        mesh = last.data[k * TRACES_PER_PANEL + 1]
+        xs, ys, zs = list(mesh.x), list(mesh.y), list(mesh.z)
+        got = {(xs[b], ys[b], zs[b], xs[b + 6] - xs[b], ys[b + 6] - ys[b], zs[b + 6] - zs[b])
+               for b in range(0, len(xs), 8)}
+        assert got == want
+        assert len(last.data[k * TRACES_PER_PANEL + 2].x) == 0  # nothing falling
+        assert len(last.data[k * TRACES_PER_PANEL + 3].x) == 0  # no red item at the end
+    # every failed attempt shows its red item at some point, with a ✗ status
+    states = panel_states(items, rec)
+    assert sum(1 for s in states if s["failed"]) > 0
+    assert all(s["status"].startswith("✗") for s in states if s["failed"])
+    assert states[-1]["status"].startswith("✓")
+    out = write_box_search(tmp_path / "b.html", [("o", items, nv, rec)], "t")
+    assert out.stat().st_size < 10e6
+
+
+def test_multistart_never_picks_a_bigger_box():
+    for items in _orders(80):
+        multi = br.recommend(items, CATALOG).extra["box_volume"]
+        for rule in ("volume", "height", "area"):
+            assert multi <= br.recommend(items, CATALOG, rules=(rule,)).extra["box_volume"]

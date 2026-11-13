@@ -32,6 +32,9 @@ STYLE = {  # algorithm -> (label, color, marker)
     "ep_support_90": ("EP + support 90%", "#d62728", "v"),
     "box_recommend": ("Box recommendation", "#2ca02c", "s"),
     "box_naive": ("Naive box choice", "#d62728", "o"),
+    "box_recommend_volume": ("Recommendation, volume rule only", "#1f77b4", "s"),
+    "box_recommend_height": ("Recommendation, height rule only", "#17becf", "^"),
+    "box_recommend_area": ("Recommendation, base-area rule only", "#9467bd", "D"),
 }
 
 

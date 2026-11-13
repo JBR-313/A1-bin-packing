@@ -25,6 +25,7 @@ from packing.threed.constraints import support_violations, weight_violations
 from packing.threed.geometry import lower_bound_3d, validate_3d, volume
 from packing.viz import plots
 from packing.viz.animate3d import write_animation
+from packing.viz.animate_boxes import write_box_search
 from packing.viz.view3d import write_comparison
 
 BOX = cfg.C3_CONTAINER
@@ -82,14 +83,26 @@ def algorithms(ns: list[int]) -> dict[str, AlgoSpec]:
     return algos
 
 
+def order_items(oid: int):
+    return gen_order(oid, cfg.BASE_SEED, cfg.ORDER_ITEMS, cfg.ORDER_DIM_RANGE, cfg.C3_WEIGHT_RANGE)
+
+
+def _single_rule(rule):
+    def f(items, catalog):
+        return box_recommend.recommend(items, catalog, rules=(rule,))
+    return f
+
+
 def run_orders() -> tuple[pd.DataFrame, dict]:
-    """Box recommendation vs naive box choice on NUM_ORDERS fixed orders."""
+    """Box recommendation vs naive box choice on NUM_ORDERS fixed orders, plus the
+    recommendation restricted to ONE sort rule (to measure what multi-start buys)."""
+    methods = [("box_recommend", box_recommend.recommend, True),
+               ("box_naive", box_recommend.naive_box, False)]
+    methods += [(f"box_recommend_{r}", _single_rule(r), True) for r in extreme_point.SORT_RULES]
     rows, kept = [], {}
     for oid in range(cfg.NUM_ORDERS):
-        items = gen_order(oid, cfg.BASE_SEED, cfg.ORDER_ITEMS, cfg.ORDER_DIM_RANGE,
-                          cfg.C3_WEIGHT_RANGE)
-        for name, f, rot in [("box_recommend", box_recommend.recommend, True),
-                             ("box_naive", box_recommend.naive_box, False)]:
+        items = order_items(oid)
+        for name, f, rot in methods:
             t0 = time.perf_counter()
             res = f(items, cfg.BOX_CATALOG)
             dt = time.perf_counter() - t0
@@ -140,6 +153,23 @@ def write_views(mode: str, kept: dict) -> None:
                          "Box choice per order: naive vs recommendation", max_bins=2)
 
 
+def write_box_animation(mode: str, n_orders: int = 2) -> None:
+    """Box search animation for orders where multi-start mattered: one sort rule failed
+    in the box that another rule then filled, and the naive rule needed a bigger box."""
+    picked = []
+    for oid in range(cfg.NUM_ORDERS):
+        items = order_items(oid)
+        rec = box_recommend.recommend(items, cfg.BOX_CATALOG, trace=True)
+        nv = box_recommend.naive_box(items, cfg.BOX_CATALOG, trace=True)
+        failed_boxes = {t["box"] for t in rec.trace if t["outcome"] == "fail"}
+        if rec.extra["box"] in failed_boxes and nv.extra["box_volume"] > rec.extra["box_volume"]:
+            picked.append((f"order {oid}", items, nv, rec))
+        if len(picked) == n_orders:
+            break
+    write_box_search(HTML_DIR / f"anim_boxes_{mode}.html", picked,
+                     "Searching for the smallest box")
+
+
 def write_animations(mode: str) -> None:
     """Drop-in animations on one fixed instance (same items in every panel)."""
     items = make_instance(cfg.C3_ANIM_N, cfg.C3_ANIM_DIST, cfg.BASE_SEED)
@@ -172,6 +202,7 @@ def main() -> None:
     plots.plot_exp_c(df, FIG_DIR, mode, cfg.VOID_LIMIT)
     write_views(mode, kept)
     write_animations(mode)
+    write_box_animation(mode)
     print(f"done in {time.perf_counter() - t0:.1f}s")
 
 
