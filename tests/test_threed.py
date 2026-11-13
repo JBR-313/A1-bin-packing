@@ -78,3 +78,93 @@ def test_naive_valid_random(dist):
         r = naive.pack(items, BOX)
         validate_3d(items, BOX, r.placements, allow_rotation=False)
         assert r.num_bins >= lower_bound_3d(items, BOX)
+
+
+# ---------------------------------------------------------------- extreme point
+from packing.threed import extreme_point as ep  # noqa: E402
+from packing.threed.constraints import support_violations, weight_violations  # noqa: E402
+
+
+def test_ep_eight_cubes_fill_one_bin():
+    box = (10, 10, 10)
+    items = [(5, 5, 5, 1)] * 8
+    r = ep.pack(items, box)
+    validate_3d(items, box, r.placements)
+    assert r.num_bins == 1
+    assert ep.pack(items + [(5, 5, 5, 1)], box).num_bins == 2
+
+
+def test_ep_lowest_point_first():
+    box = (10, 10, 10)
+    items = [(10, 5, 5, 1), (10, 5, 5, 1)]  # second goes next to the first, not on top
+    r = ep.pack(items, box, allow_rotation=False)
+    assert (r.placements[1].x, r.placements[1].y, r.placements[1].z) == (0, 5, 0)
+
+
+def test_ep_rotation():
+    box = (10, 5, 5)
+    item = [(5, 10, 5, 1)]
+    with pytest.raises(ValueError):
+        ep.pack(item, box, allow_rotation=False)
+    r = ep.pack(item, box, allow_rotation=True)
+    validate_3d(item, box, r.placements)
+    assert (r.placements[0].w, r.placements[0].d) == (10, 5)
+
+
+def test_ep_beats_naive_where_naive_wastes_space():
+    box = (10, 10, 10)
+    items = [(6, 10, 5, 1), (6, 10, 5, 1), (4, 10, 5, 1), (4, 10, 5, 1)]
+    # Naive (arrival order): 6 at z=0; next 6 does not fit beside it -> layer z=5;
+    # 4 goes beside it at z=5; last 4 needs layer z=10 -> new bin. Total 2.
+    # Exact fit exists: (6 + 4) side by side on each of two layers -> 1 bin.
+    assert naive.pack(items, box).num_bins == 2
+    r = ep.pack(items, box, allow_rotation=False)
+    validate_3d(items, box, r.placements, allow_rotation=False)
+    assert r.num_bins == 1
+
+
+def test_ep_max_bins_infeasible():
+    r = ep.pack([(10, 10, 10, 1)] * 2, (10, 10, 10), max_bins=1)
+    assert r.status == "infeasible" and r.num_bins is None
+
+
+@pytest.mark.parametrize("dist", DISTS_3D)
+@pytest.mark.parametrize("rule", ep.SORT_RULES)
+def test_ep_valid_random(dist, rule):
+    for seed in range(2):
+        items = gen_3d(80, dist, seed)
+        for rot in (True, False):
+            r = ep.pack(items, BOX, sort=rule, allow_rotation=rot)
+            validate_3d(items, BOX, r.placements, allow_rotation=rot)
+            assert r.num_bins >= lower_bound_3d(items, BOX)
+
+
+# ---------------------------------------------------------------- loading constraints
+def test_support_rejects_small_base():
+    box = (10, 10, 10)
+    items = [(2, 10, 6, 1), (10, 10, 2, 1)]  # flat slab can only go on top of the post
+    free = ep.pack(items, box, sort="arrival", allow_rotation=False)
+    assert free.num_bins == 1 and len(support_violations(free.placements)) == 1
+    sup = ep.pack(items, box, sort="arrival", allow_rotation=False, support_ratio=0.7)
+    assert sup.num_bins == 2 and support_violations(sup.placements) == []
+
+
+def test_heavy_below():
+    box = (10, 10, 10)
+    items = [(10, 10, 2, 1), (2, 2, 2, 10)]  # heavy cube would sit on a light slab
+    assert ep.pack(items, box, allow_rotation=False).num_bins == 1
+    r = ep.pack(items, box, allow_rotation=False, support_ratio=0.7, heavy_below=True)
+    assert r.num_bins == 2 and weight_violations(items, r.placements) == []
+
+
+@pytest.mark.parametrize("dist", DISTS_3D)
+def test_constraints_never_violated(dist):
+    for seed in range(3):
+        items = gen_3d(150, dist, seed)
+        r = ep.pack(items, BOX, support_ratio=0.7)
+        validate_3d(items, BOX, r.placements)
+        assert support_violations(r.placements, 0.7) == []
+        r = ep.pack(items, BOX, support_ratio=0.7, heavy_below=True)
+        validate_3d(items, BOX, r.placements)
+        assert support_violations(r.placements, 0.7) == []
+        assert weight_violations(items, r.placements) == []
