@@ -179,3 +179,43 @@ def test_viewer_writes_html(tmp_path):
     text = out.read_text()
     assert "Mesh3d" in text or "mesh3d" in text
     assert text.count("scene") >= 2
+
+
+# ---------------------------------------------------------------- box recommendation
+from packing.generators import gen_order  # noqa: E402
+from packing.threed import box_recommend as br  # noqa: E402
+
+CATALOG = [(20, 15, 10), (30, 20, 15), (35, 25, 20), (40, 30, 25), (50, 40, 30), (60, 45, 40)]
+
+
+def test_box_two_cubes_smallest_box():
+    items = [(10, 10, 10, 1), (10, 10, 10, 1)]  # 20x10x10 fits in 20x15x10
+    for f in (br.recommend, br.naive_box):
+        r = f(items, CATALOG)
+        validate_3d(items, CATALOG[0], r.placements)
+        assert r.extra["box"] == 0 and r.extra["num_boxes"] == 1
+        assert abs(r.extra["void_ratio"] - (1 - 2000 / 3000)) < 1e-9
+
+
+def test_box_rotation_saves_a_size():
+    items = [(15, 20, 10, 1)]  # needs a 90-degree turn to fit 20x15x10
+    assert br.recommend(items, CATALOG).extra["box"] == 0
+    assert br.naive_box(items, CATALOG).extra["box"] == 1
+
+
+def test_box_split_when_too_big():
+    items = [(25, 25, 25, 1)] * 12  # 187,500 > largest box 108,000
+    r = br.recommend(items, CATALOG)
+    assert r.extra["box"] == 5 and r.extra["num_boxes"] >= 2
+    validate_3d(items, CATALOG[5], r.placements)
+
+
+def test_box_random_orders_valid():
+    for oid in range(40):
+        items = gen_order(oid, 0)
+        rec, nav = br.recommend(items, CATALOG), br.naive_box(items, CATALOG)
+        validate_3d(items, CATALOG[rec.extra["box"]], rec.placements)
+        validate_3d(items, CATALOG[nav.extra["box"]], nav.placements, allow_rotation=False)
+        # Not a theorem (EP is a heuristic too), but holds on these 40 fixed orders;
+        # if it ever fails, look at the order before trusting experiment C numbers.
+        assert rec.extra["box_volume"] <= nav.extra["box_volume"]
