@@ -69,6 +69,9 @@ Outputs:
   box choice examples); open in a browser (loads plotly from a CDN)
 - `results/summary.md` — **numbers in slides and personal READMEs must come from this file**
 
+Only default-mode results are committed. `--quick` outputs (`*_quick.*`) are a local
+pipeline check and are git-ignored.
+
 ## Measurement rules
 
 - Every algorithm gets the identical instance for a given (distribution, n, seed).
