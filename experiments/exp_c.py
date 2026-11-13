@@ -73,6 +73,11 @@ def algorithms(ns: list[int]) -> dict[str, AlgoSpec]:
     algos["ep_support_weight"] = AlgoSpec(extreme_point.pack, ns, isolate=False,
                                           kwargs={"sort": "volume", "allow_rotation": True,
                                                   "support_ratio": sup, "heavy_below": True})
+    # same constraints, heaviest items first (cheaper way to respect heavy-below?)
+    algos["ep_weight_support_weight"] = AlgoSpec(
+        extreme_point.pack, ns, isolate=False,
+        kwargs={"sort": "weight", "allow_rotation": True, "support_ratio": sup,
+                "heavy_below": True})
     return algos
 
 
@@ -106,6 +111,7 @@ def write_views(mode: str, kept: dict) -> None:
     epv = extreme_point.pack(items, BOX)
     eps = extreme_point.pack(items, BOX, support_ratio=sup)
     epw = extreme_point.pack(items, BOX, support_ratio=sup, heavy_below=True)
+    epww = extreme_point.pack(items, BOX, sort="weight", support_ratio=sup, heavy_below=True)
     tag = f"{cfg.C3_VIEW_DIST}, n={cfg.C3_VIEW_N}, seed={cfg.BASE_SEED}"
     write_comparison(HTML_DIR / f"exp_c_naive_vs_ep_{mode}.html",
                      [("3D Naive", items, BOX, nv), ("Extreme Point", items, BOX, epv)],
@@ -113,7 +119,8 @@ def write_views(mode: str, kept: dict) -> None:
     write_comparison(HTML_DIR / f"exp_c_constraints_{mode}.html",
                      [("EP (no constraints)", items, BOX, epv),
                       (f"EP + support {sup:.0%}", items, BOX, eps),
-                      ("EP + support + heavy-below", items, BOX, epw)],
+                      ("EP + support + heavy-below", items, BOX, epw),
+                      ("same, heaviest first", items, BOX, epww)],
                      f"Loading constraints on / off ({tag})")
     # orders where the recommendation picked a smaller box than the naive choice
     better = [oid for oid in range(cfg.NUM_ORDERS)

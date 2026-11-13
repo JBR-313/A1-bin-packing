@@ -230,3 +230,37 @@ def test_viewer_grid_layout_and_all_bins(tmp_path):
     assert r.num_bins > PER_ROW  # needs a second row
     assert len(world_boxes(items, BOX, r.placements, r.num_bins)) == len(items)
     write_comparison(tmp_path / "all.html", [("Naive", items, BOX, r)], "all bins")
+
+
+# ---------------------------------------------------------------- heaviest-first sort
+def test_weight_sort_order():
+    items = [(10, 10, 10, 3), (20, 20, 20, 7), (5, 5, 5, 7), (30, 30, 30, 1)]
+    # weight 7 first (bigger volume breaks the tie), then 3, then 1
+    assert ep.sort_order(items, "weight") == [1, 2, 0, 3]
+    assert "weight" not in ep.SORT_RULES  # box recommendation must stay unchanged
+
+
+def test_weight_first_hand_example():
+    # Light but bulky slab (10x10x4, weight 1) and heavy thin slab (10x10x2, weight 9).
+    # Volume order: bulky light slab takes the floor; the heavy slab may not rest on a
+    # lighter item -> 2 bins. Heaviest-first: heavy slab on the floor, light one on top
+    # -> 1 bin. Both runs obey support and heavy-below.
+    box = (10, 10, 10)
+    items = [(10, 10, 4, 1), (10, 10, 2, 9)]
+    kw = dict(allow_rotation=False, support_ratio=0.7, heavy_below=True)
+    vol = ep.pack(items, box, sort="volume", **kw)
+    wt = ep.pack(items, box, sort="weight", **kw)
+    assert vol.num_bins == 2 and wt.num_bins == 1
+    for r in (vol, wt):
+        validate_3d(items, box, r.placements, allow_rotation=False)
+        assert weight_violations(items, r.placements) == []
+
+
+@pytest.mark.parametrize("dist", DISTS_3D)
+def test_weight_first_valid_random(dist):
+    for seed in range(3):
+        items = gen_3d(150, dist, seed)
+        r = ep.pack(items, BOX, sort="weight", support_ratio=0.7, heavy_below=True)
+        validate_3d(items, BOX, r.placements)
+        assert support_violations(r.placements, 0.7) == []
+        assert weight_violations(items, r.placements) == []

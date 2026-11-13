@@ -26,6 +26,7 @@ STYLE = {  # algorithm -> (label, color, marker)
     "ep_area": ("EP, sort by base area", "#9467bd", "D"),
     "ep_support": ("EP + support 70%", "#ff7f0e", "v"),
     "ep_support_weight": ("EP + support + heavy-below", "#8c564b", "P"),
+    "ep_weight_support_weight": ("EP heaviest-first + support + heavy-below", "#2ca02c", "*"),
     "ep_volume_norot": ("EP, sort by volume, no rotation", "#7f7f7f", "X"),
     "ep_support_50": ("EP + support 50%", "#ffbb78", "v"),
     "ep_support_90": ("EP + support 90%", "#d62728", "v"),
@@ -123,12 +124,12 @@ def plot_exp_b(df: pd.DataFrame, out_dir: Path, mode: str) -> None:
 
 
 # ---------------------------------------------------------------- experiment C
-CONSTRAINED = ("ep_support", "ep_support_weight")
+CONSTRAINED = ("ep_support", "ep_support_weight", "ep_weight_support_weight")
 SUPPORT_SENSITIVITY = ("ep_support_50", "ep_support", "ep_support_90")
 ROTATION = ("ep_volume_norot", "naive")
 # lines drawn in the per-n plots (sensitivity variants only go to summary.md)
 MAIN_C = ("naive", "ep_volume_norot", "ep_volume", "ep_height", "ep_area",
-          "ep_support", "ep_support_weight")
+          "ep_support", "ep_support_weight", "ep_weight_support_weight")
 
 
 def extra_bins(df: pd.DataFrame, variants=CONSTRAINED, base: str = "ep_volume") -> pd.DataFrame:
@@ -199,10 +200,10 @@ def plot_exp_c(df: pd.DataFrame, out_dir: Path, mode: str, void_limit: float) ->
     if len(cc):
         fig, ax = plt.subplots(figsize=(9, 5))
         groups = list(dict.fromkeys(cc.dist))
-        width = 0.38
+        width = 0.8 / len(CONSTRAINED)
         for k, alg in enumerate(CONSTRAINED):
             s = cc[cc.variant == alg].set_index("dist").reindex(groups)
-            xs = [i + (k - 0.5) * width for i in range(len(groups))]
+            xs = [i + (k - (len(CONSTRAINED) - 1) / 2) * width for i in range(len(groups))]
             bars = ax.bar(xs, s.increase_pct, width, label=STYLE[alg][0], color=STYLE[alg][1])
             ax.bar_label(bars, fmt="%.1f%%", fontsize=11)
         ax.set_xticks(range(len(groups)), groups)

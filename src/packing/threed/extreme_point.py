@@ -26,7 +26,8 @@ from packing.threed import constraints as cons
 from packing.threed.geometry import fits_empty, orientations, overlaps, volume
 from packing.types import INFEASIBLE, Box, Item3D, Placement, Result
 
-SORT_RULES = ("volume", "height", "area")
+SORT_RULES = ("volume", "height", "area")  # used by box recommendation's multi-start
+# extra rules accepted by sort_order(): "weight" (heaviest first), "arrival" (no sorting)
 
 
 def sort_order(items: list[Item3D], rule: str) -> list[int]:
@@ -34,6 +35,9 @@ def sort_order(items: list[Item3D], rule: str) -> list[int]:
         "volume": lambda i: (-volume(items[i]), -items[i][2]),
         "height": lambda i: (-items[i][2], -volume(items[i])),
         "area": lambda i: (-items[i][0] * items[i][1], -items[i][2]),
+        # heaviest first: heavy items take the floor before light ones, so the
+        # heavy-below rule blocks fewer positions. Not in SORT_RULES on purpose.
+        "weight": lambda i: (-items[i][3], -volume(items[i])),
         "arrival": lambda i: 0,
     }
     if rule not in keys:
