@@ -81,12 +81,16 @@ cost differs strongly between flat and long items → summary C "Cost of loading
 Naive never revisits space: a row is as deep as its deepest item and a layer as tall as its
 tallest item, and everything above short items is wasted. It also never rotates. EP sorts
 items, keeps candidate corners in all open bins and goes back to fill gaps.
-*Honest caveat:* part of the gap is rotation, not the algorithm. (TODO: an "EP, no rotation"
-run would separate the two effects.)
+Part of the gap is rotation, so we also ran the same EP **without** rotation. That run shows
+how much is rotation and how much is the algorithm. → summary C "How much of the Naive → EP gap
+is rotation?" (in the quick run, rotation explained only a small part; the algorithm explained
+most of it — check the default-mode table before saying this).
 
 ### Q11. Where does the 70% support value come from?
 It is our assumption, not a standard; 70% is a middle value between "fully supported" and
-"anything goes". We report it as an assumption. (TODO: sensitivity run with 50 / 70 / 90%.)
+"anything goes". So we also ran 50% and 90% on the same instances to show how much the
+choice matters. → summary C "Sensitivity of the support threshold". The cost grows with the
+threshold and depends strongly on item shape (flat items are hit hardest, long items barely).
 
 ### Q12. Why does heavy-below cost so many more bins than support?
 Heavy-below forbids stacking whenever the item below is lighter — with random weights that

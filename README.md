@@ -99,6 +99,9 @@ All values live in `experiments/config.py`.
   *long* (one random side 29..50, others 5..16), *mixed* (shape chosen per item).
 - Rotation: 3D Naive never rotates; EP and box recommendation allow all 6 orientations.
 - Support threshold 70% of the bottom face — our assumption, not an industry standard.
+  Experiment C also runs 50% and 90% on the same instances (sensitivity table in summary).
+- Experiment C also runs EP **without** rotation, to separate the effect of rotation from
+  the effect of the algorithm when comparing with 3D Naive.
 - Heavy-below checks direct contact only (not everything further below).
 - Box catalog (6 boxes): 20×15×10, 30×20×15, 35×25×20, 40×30×25, 50×40×30, 60×45×40.
 - Orders: 200 orders of 3..15 items, item sides 3..25, mixed shapes.

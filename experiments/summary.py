@@ -16,7 +16,7 @@ import pandas as pd
 
 from experiments import config as cfg
 from experiments.common import CSV_DIR, ROOT
-from packing.viz.plots import constraint_cost
+from packing.viz.plots import ROTATION, SUPPORT_SENSITIVITY, constraint_cost, extra_bins
 
 
 def _load(exp: str, mode: str | None) -> tuple[pd.DataFrame | None, str]:
@@ -114,6 +114,21 @@ def section_c(df: pd.DataFrame, mode: str) -> list[str]:
             "`increase_pct` = sum(bins with) / sum(bins without) − 1 over all n and seeds. "
             f"Support threshold {cfg.C3_SUPPORT_RATIO:.0%} is an assumption.", "",
             table(constraint_cost(df)), ""]
+
+    sens = extra_bins(df, SUPPORT_SENSITIVITY)
+    if len(sens):
+        out += ["### Sensitivity of the support threshold", "",
+                "Extra bins vs plain EP for support thresholds 50% / 70% / 90% "
+                "(same instances, same method as above).", "",
+                table(sens[sens.dist == "all"]), "", table(sens[sens.dist != "all"]), ""]
+
+    rot = extra_bins(df, ROTATION)
+    if len(rot):
+        out += ["### How much of the Naive → EP gap is rotation?", "",
+                "Extra bins vs EP with rotation (sort by volume). `ep_volume_norot` = same EP "
+                "without rotation; `naive` = 3D Naive (no rotation). The gap between the two "
+                "rows is the algorithm; the gap between `ep_volume_norot` and 0% is rotation.",
+                "", table(rot), ""]
 
     b = df[df.experiment == "C-box"].copy()
     if len(b):

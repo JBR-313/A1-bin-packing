@@ -56,9 +56,17 @@ def algorithms(ns: list[int]) -> dict[str, AlgoSpec]:
     """All run in-process (polynomial; a run longer than the limit is marked timeout)."""
     sup = cfg.C3_SUPPORT_RATIO
     algos = {"naive": AlgoSpec(naive.pack, ns, isolate=False)}
+    # same EP without rotation: separates "better algorithm" from "allowed to rotate"
+    algos["ep_volume_norot"] = AlgoSpec(extreme_point.pack, ns, isolate=False,
+                                        kwargs={"sort": "volume", "allow_rotation": False})
     for rule in extreme_point.SORT_RULES:
         algos[f"ep_{rule}"] = AlgoSpec(extreme_point.pack, ns, isolate=False,
                                        kwargs={"sort": rule, "allow_rotation": True})
+    # sensitivity of the (assumed) support threshold
+    for r in cfg.C3_SUPPORT_SENSITIVITY:
+        algos[f"ep_support_{round(r * 100)}"] = AlgoSpec(
+            extreme_point.pack, ns, isolate=False,
+            kwargs={"sort": "volume", "allow_rotation": True, "support_ratio": r})
     algos["ep_support"] = AlgoSpec(extreme_point.pack, ns, isolate=False,
                                    kwargs={"sort": "volume", "allow_rotation": True,
                                            "support_ratio": sup})

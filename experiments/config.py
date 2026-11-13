@@ -28,6 +28,7 @@ C3_CONTAINER = (100, 100, 100)
 C3_DIM_RANGE = (5, 50)      # item size per axis
 C3_WEIGHT_RANGE = (1, 20)   # integer weight
 C3_SUPPORT_RATIO = 0.7      # share of the bottom face that must rest on items (assumption)
+C3_SUPPORT_SENSITIVITY = (0.5, 0.9)  # extra thresholds run to show how much 70% matters
 C3_DISTS = ("uniform", "flat", "long", "mixed")
 # quick skips n=500 (EP takes ~2-6 s there in pure Python, over the 5 s quick limit)
 C3_N = {"quick": [20, 50, 100, 200], "default": [20, 50, 100, 200, 500],

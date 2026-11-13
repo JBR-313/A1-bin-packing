@@ -26,6 +26,9 @@ STYLE = {  # algorithm -> (label, color, marker)
     "ep_area": ("EP, sort by base area", "#9467bd", "D"),
     "ep_support": ("EP + support 70%", "#ff7f0e", "v"),
     "ep_support_weight": ("EP + support + heavy-below", "#8c564b", "P"),
+    "ep_volume_norot": ("EP, sort by volume, no rotation", "#7f7f7f", "X"),
+    "ep_support_50": ("EP + support 50%", "#ffbb78", "v"),
+    "ep_support_90": ("EP + support 90%", "#d62728", "v"),
     "box_recommend": ("Box recommendation", "#2ca02c", "s"),
     "box_naive": ("Naive box choice", "#d62728", "o"),
 }
@@ -117,33 +120,44 @@ def plot_exp_b(df: pd.DataFrame, out_dir: Path, mode: str) -> None:
 
 # ---------------------------------------------------------------- experiment C
 CONSTRAINED = ("ep_support", "ep_support_weight")
+SUPPORT_SENSITIVITY = ("ep_support_50", "ep_support", "ep_support_90")
+ROTATION = ("ep_volume_norot", "naive")
+# lines drawn in the per-n plots (sensitivity variants only go to summary.md)
+MAIN_C = ("naive", "ep_volume_norot", "ep_volume", "ep_height", "ep_area",
+          "ep_support", "ep_support_weight")
 
 
-def constraint_cost(df: pd.DataFrame, base: str = "ep_volume") -> pd.DataFrame:
-    """Extra bins caused by loading constraints, per distribution and overall.
+def extra_bins(df: pd.DataFrame, variants=CONSTRAINED, base: str = "ep_volume") -> pd.DataFrame:
+    """Extra bins of each variant compared with `base`, per distribution and overall.
 
-    Compares each constrained run with plain EP (same sort rule: volume) on the SAME
-    instances (dist, n, seed) where both finished. increase = sum(bins with constraint)
-    / sum(bins without) - 1, which is steadier than a median of small integers.
+    Default: loading constraints vs plain EP (both sorted by volume, rotation on).
+    Only instances (dist, n, seed) where both finished are compared.
+    increase = sum(bins of variant) / sum(bins of base) - 1, which is steadier than a
+    median of small integers.
     """
     c = df[(df.experiment == "C") & (df.status == "ok")]
     key = ["dist", "n", "seed"]
     b = c[c.algorithm == base].set_index(key).num_bins.rename("base")
     rows = []
-    for alg in CONSTRAINED:
-        j = c[c.algorithm == alg].set_index(key).num_bins.rename("con").to_frame().join(b, how="inner")
+    for alg in variants:
+        j = c[c.algorithm == alg].set_index(key).num_bins.rename("var").to_frame().join(b, how="inner")
+        if j.empty:
+            continue
         for dist, g in list(j.groupby(level="dist")) + [("all", j)]:
-            more = (g.con > g.base).mean()
-            rows.append({"constraint": alg, "dist": dist, "instances": len(g),
-                         "bins_without": int(g.base.sum()), "bins_with": int(g.con.sum()),
-                         "increase_pct": round(100 * (g.con.sum() / g.base.sum() - 1), 1),
-                         "share_needing_more_bins": f"{more:.0%}"})
+            rows.append({"variant": alg, "dist": dist, "instances": len(g),
+                         f"bins_{base}": int(g.base.sum()), "bins_variant": int(g["var"].sum()),
+                         "increase_pct": round(100 * (g["var"].sum() / g.base.sum() - 1), 1),
+                         "share_needing_more_bins": f"{(g['var'] > g.base).mean():.0%}"})
     return pd.DataFrame(rows)
+
+
+def constraint_cost(df: pd.DataFrame) -> pd.DataFrame:
+    return extra_bins(df, CONSTRAINED)
 
 
 def plot_exp_c(df: pd.DataFrame, out_dir: Path, mode: str, void_limit: float) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
-    c = df[(df.experiment == "C") & df.status.isin(["ok"])].copy()
+    c = df[(df.experiment == "C") & df.status.isin(["ok"]) & df.algorithm.isin(MAIN_C)].copy()
     c["ratio"] = c.num_bins.astype(float) / c.lower_bound
     dists = list(dict.fromkeys(c.dist))
 
@@ -183,7 +197,7 @@ def plot_exp_c(df: pd.DataFrame, out_dir: Path, mode: str, void_limit: float) ->
         groups = list(dict.fromkeys(cc.dist))
         width = 0.38
         for k, alg in enumerate(CONSTRAINED):
-            s = cc[cc.constraint == alg].set_index("dist").reindex(groups)
+            s = cc[cc.variant == alg].set_index("dist").reindex(groups)
             xs = [i + (k - 0.5) * width for i in range(len(groups))]
             bars = ax.bar(xs, s.increase_pct, width, label=STYLE[alg][0], color=STYLE[alg][1])
             ax.bar_label(bars, fmt="%.1f%%", fontsize=11)
