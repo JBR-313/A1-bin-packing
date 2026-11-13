@@ -2,19 +2,22 @@
 
 Timeout rule: if ANY rep of (algorithm, dist, n) times out, that n is recorded as
 timeout and all larger n are skipped for that algorithm and distribution.
+
+The same loop serves 1D and 3D; a `Problem` says how to generate an instance, call a
+solver, validate its answer and compute the lower bound / fill rate.
 """
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Any, Callable
 
 import pandas as pd
 
 from packing.bench.timeout import run_with_timeout
 from packing.bounds import lower_bound_1d, validate_1d
 from packing.generators import gen_1d
-from packing.types import TIMEOUT
+from packing.types import TIMEOUT, Result
 
 COLUMNS = ["experiment", "algorithm", "dist", "n", "seed", "rep", "num_bins", "lower_bound",
            "opt", "runtime_s", "status", "fill_rate", "extra_json"]
@@ -30,8 +33,27 @@ class AlgoSpec:
     hard_timeout_s: float | None = None  # defaults to the mode's timeout
 
 
-def sweep_1d(experiment: str, algos: dict[str, AlgoSpec], dists, reps: int, base_seed: int,
-             timeout_s: float, C: int) -> pd.DataFrame:
+@dataclass
+class Problem:
+    gen: Callable[[int, str, int], Any]                  # (n, dist, seed) -> instance
+    args: Callable[[Any], tuple]                         # instance -> solver positional args
+    validate: Callable[[Any, Result, AlgoSpec], None]    # raise if the answer is invalid
+    lower_bound: Callable[[Any], int]
+    fill_rate: Callable[[Any, int], float]               # (instance, bins) -> used share
+
+
+def problem_1d(C: int) -> Problem:
+    return Problem(
+        gen=lambda n, dist, seed: gen_1d(n, C, dist, seed),
+        args=lambda sizes: (sizes, C),
+        validate=lambda sizes, res, spec: validate_1d(sizes, C, res.bins),
+        lower_bound=lambda sizes: lower_bound_1d(sizes, C),
+        fill_rate=lambda sizes, k: sum(sizes) / (k * C),
+    )
+
+
+def sweep(experiment: str, problem: Problem, algos: dict[str, AlgoSpec], dists, reps: int,
+          base_seed: int, timeout_s: float) -> pd.DataFrame:
     rows = []
     for dist in dists:
         for name, spec in algos.items():
@@ -40,29 +62,35 @@ def sweep_1d(experiment: str, algos: dict[str, AlgoSpec], dists, reps: int, base
                 timed_out = False
                 for rep in range(reps):
                     seed = base_seed + rep
-                    sizes = gen_1d(n, C, dist, seed)
-                    res = run_with_timeout(spec.func, (sizes, C), spec.kwargs, limit, spec.isolate)
+                    inst = problem.gen(n, dist, seed)
+                    res = run_with_timeout(spec.func, problem.args(inst), spec.kwargs, limit,
+                                           spec.isolate)
                     if res.bins is not None:
-                        validate_1d(sizes, C, res.bins)
+                        problem.validate(inst, res, spec)
                     k = res.num_bins
                     rows.append({
                         "experiment": experiment, "algorithm": name, "dist": dist, "n": n,
                         "seed": seed, "rep": rep, "num_bins": k,
-                        "lower_bound": lower_bound_1d(sizes, C), "opt": None,
+                        "lower_bound": problem.lower_bound(inst), "opt": None,
                         "runtime_s": res.runtime_s, "status": res.status,
-                        "fill_rate": sum(sizes) / (k * C) if k else None,
+                        "fill_rate": problem.fill_rate(inst, k) if k else None,
                         "extra_json": json.dumps(res.extra),
                     })
                     if res.status == TIMEOUT:
                         timed_out = True
                         break
-                print(f"[{experiment}] {dist:8s} {name:10s} n={n:<6d} "
+                print(f"[{experiment}] {dist:8s} {name:18s} n={n:<6d} "
                       f"{'TIMEOUT' if timed_out else rows[-1]['status']:8s} "
                       f"last={rows[-1]['runtime_s']:.3f}s", flush=True)
                 if timed_out:
                     break
     df = pd.DataFrame(rows, columns=COLUMNS)
     return fill_opt(df, [n for n, s in algos.items() if s.exact])
+
+
+def sweep_1d(experiment: str, algos: dict[str, AlgoSpec], dists, reps: int, base_seed: int,
+             timeout_s: float, C: int) -> pd.DataFrame:
+    return sweep(experiment, problem_1d(C), algos, dists, reps, base_seed, timeout_s)
 
 
 def fill_opt(df: pd.DataFrame, exact_algos: list[str]) -> pd.DataFrame:

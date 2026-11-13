@@ -20,6 +20,14 @@ STYLE = {  # algorithm -> (label, color, marker)
     "next_fit": ("Next Fit", "#8c564b", "v"),
     "first_fit": ("First Fit", "#ff7f0e", "<"),
     "best_fit": ("Best Fit", "#17becf", ">"),
+    "naive": ("3D Naive (layers)", "#d62728", "o"),
+    "ep_volume": ("EP, sort by volume", "#1f77b4", "s"),
+    "ep_height": ("EP, sort by height", "#17becf", "^"),
+    "ep_area": ("EP, sort by base area", "#9467bd", "D"),
+    "ep_support": ("EP + support 70%", "#ff7f0e", "v"),
+    "ep_support_weight": ("EP + support + heavy-below", "#8c564b", "P"),
+    "box_recommend": ("Box recommendation", "#2ca02c", "s"),
+    "box_naive": ("Naive box choice", "#d62728", "o"),
 }
 
 
@@ -104,4 +112,106 @@ def plot_exp_b(df: pd.DataFrame, out_dir: Path, mode: str) -> None:
         fig.suptitle("Heuristics at scale" + (" — quality" if col == "ratio" else " — runtime"))
         fig.tight_layout()
         fig.savefig(out_dir / f"exp_b_{fname}_{mode}.png")
+        plt.close(fig)
+
+
+# ---------------------------------------------------------------- experiment C
+CONSTRAINED = ("ep_support", "ep_support_weight")
+
+
+def constraint_cost(df: pd.DataFrame, base: str = "ep_volume") -> pd.DataFrame:
+    """Extra bins caused by loading constraints, per distribution and overall.
+
+    Compares each constrained run with plain EP (same sort rule: volume) on the SAME
+    instances (dist, n, seed) where both finished. increase = sum(bins with constraint)
+    / sum(bins without) - 1, which is steadier than a median of small integers.
+    """
+    c = df[(df.experiment == "C") & (df.status == "ok")]
+    key = ["dist", "n", "seed"]
+    b = c[c.algorithm == base].set_index(key).num_bins.rename("base")
+    rows = []
+    for alg in CONSTRAINED:
+        j = c[c.algorithm == alg].set_index(key).num_bins.rename("con").to_frame().join(b, how="inner")
+        for dist, g in list(j.groupby(level="dist")) + [("all", j)]:
+            more = (g.con > g.base).mean()
+            rows.append({"constraint": alg, "dist": dist, "instances": len(g),
+                         "bins_without": int(g.base.sum()), "bins_with": int(g.con.sum()),
+                         "increase_pct": round(100 * (g.con.sum() / g.base.sum() - 1), 1),
+                         "share_needing_more_bins": f"{more:.0%}"})
+    return pd.DataFrame(rows)
+
+
+def plot_exp_c(df: pd.DataFrame, out_dir: Path, mode: str, void_limit: float) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    c = df[(df.experiment == "C") & df.status.isin(["ok"])].copy()
+    c["ratio"] = c.num_bins.astype(float) / c.lower_bound
+    dists = list(dict.fromkeys(c.dist))
+
+    for col, ylabel, fname, logy in [("ratio", "bins / lower bound (median)", "bins_over_lb", False),
+                                     ("runtime_s", "runtime (s, median)", "runtime", True)]:
+        fig, axes = plt.subplots(1, len(dists), figsize=(5.5 * len(dists), 5), sharey=True)
+        med = _median(c, col)
+        for ax, dist in zip(axes, dists):
+            d = med[med.dist == dist]
+            for alg in dict.fromkeys(d.algorithm):
+                label, color, marker = STYLE[alg]
+                a = d[d.algorithm == alg]
+                ax.plot(a.n, a[col], marker=marker, color=color, label=label)
+            ax.set_xscale("log")
+            ns = sorted(c.n.unique())
+            ax.xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+            ax.set_xticks(ns, [str(n) for n in ns])
+            if logy:
+                ax.set_yscale("log")
+            ax.set_title(f"{dist} items")
+            ax.set_xlabel("number of items n")
+            ax.grid(True, which="both", alpha=0.3)
+        axes[0].set_ylabel(ylabel)
+        handles, labels = axes[0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc="lower center", ncol=len(labels), fontsize=12,
+                   frameon=False)
+        fig.suptitle("3D packing" + (" — quality (1.0 = volume lower bound)" if col == "ratio"
+                                     else " — runtime"))
+        fig.tight_layout(rect=(0, 0.08, 1, 1))
+        fig.savefig(out_dir / f"exp_c_{fname}_{mode}.png")
+        plt.close(fig)
+
+    # constraint cost bars
+    cc = constraint_cost(df)
+    if len(cc):
+        fig, ax = plt.subplots(figsize=(9, 5))
+        groups = list(dict.fromkeys(cc.dist))
+        width = 0.38
+        for k, alg in enumerate(CONSTRAINED):
+            s = cc[cc.constraint == alg].set_index("dist").reindex(groups)
+            xs = [i + (k - 0.5) * width for i in range(len(groups))]
+            bars = ax.bar(xs, s.increase_pct, width, label=STYLE[alg][0], color=STYLE[alg][1])
+            ax.bar_label(bars, fmt="%.1f%%", fontsize=11)
+        ax.set_xticks(range(len(groups)), groups)
+        ax.set_ylabel("extra bins vs plain EP (%)")
+        ax.set_title("Cost of loading constraints")
+        ax.grid(True, axis="y", alpha=0.3)
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(out_dir / f"exp_c_constraint_cost_{mode}.png")
+        plt.close(fig)
+
+    # void ratio histogram for box choice
+    b = df[df.experiment == "C-box"].copy()
+    if len(b):
+        b["void"] = 1 - b.fill_rate
+        fig, ax = plt.subplots(figsize=(9, 5))
+        bins = [i / 20 for i in range(21)]
+        for alg in ("box_naive", "box_recommend"):
+            v = b[b.algorithm == alg].void
+            ax.hist(v, bins=bins, alpha=0.6, color=STYLE[alg][1],
+                    label=f"{STYLE[alg][0]} (median {v.median():.0%})")
+        ax.axvline(void_limit, color="black", ls="--", lw=2)
+        ax.text(void_limit + 0.01, ax.get_ylim()[1] * 0.92, f"{void_limit:.0%} limit", fontsize=12)
+        ax.set_xlabel("void ratio = 1 - item volume / box volume")
+        ax.set_ylabel("number of orders")
+        ax.set_title(f"Box choice for {b.rep.nunique()} orders")
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(out_dir / f"exp_c_void_hist_{mode}.png")
         plt.close(fig)
