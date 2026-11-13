@@ -102,7 +102,14 @@ All values live in `experiments/config.py`.
   Experiment C also runs 50% and 90% on the same instances (sensitivity table in summary).
 - Experiment C also runs EP **without** rotation, to separate the effect of rotation from
   the effect of the algorithm when comparing with 3D Naive.
-- Heavy-below checks direct contact only (not everything further below).
+- Heavy-below checks direct contact only (not everything further below). It is a
+  simplified stand-in for the **load-bearing (stacking) constraints** used in practice,
+  where what matters is how much weight a box's top can carry, not whether it is heavier.
+  Real loading also considers delivery order, centre of gravity and axle loads, which we
+  do not model (see Bortfeldt & Wäscher 2013 for the taxonomy of practical constraints).
+- Experiment C also runs the constrained EP with items sorted **heaviest first**
+  (`ep_weight_support_weight`), to see whether the order alone lowers the cost of
+  heavy-below (constraint cost table in summary).
 - Box catalog (6 boxes): 20×15×10, 30×20×15, 35×25×20, 40×30×25, 50×40×30, 60×45×40.
 - Orders: 200 orders of 3..15 items, item sides 3..25, mixed shapes.
 - Over-packing threshold: void ratio ≤ 50%.
@@ -142,3 +149,4 @@ repository was produced by the code here.
 - G. Dósa, "The tight bound of First Fit Decreasing bin-packing algorithm is FFD(I) ≤ 11/9 OPT(I) + 6/9", 2007.
 - T. G. Crainic, G. Perboli, R. Tadei, "Extreme point-based heuristics for three-dimensional bin packing", INFORMS J. Computing 20(3), 2008.
 - CJ대한통운 (CJ Logistics) press release on LoIS O'Pack, January 2024.
+- A. Bortfeldt, G. Wäscher, "Constraints in container loading – A state-of-the-art review", European Journal of Operational Research 229(1), 2013.

@@ -99,6 +99,22 @@ Implementation detail worth mentioning: we check both directions — an item pla
 lighter items, and a light item slid **under** an overhanging heavy one (the bug we found
 and fixed during development).
 
+**Can the cost be reduced?** Yes, by the order alone: sorting items heaviest first lets heavy
+items take the floor before light ones, so the rule blocks fewer positions. Same rule, same
+instances, fewer extra bins → summary C "Cost of loading constraints", row
+`ep_weight_support_weight` vs `ep_support_weight`.
+
+### Q12b. Is "heavy below" how it is done in practice?
+Partly. The practical version is a **load-bearing (stacking) constraint**: how much weight a
+box's top can carry, which depends on its strength, not only on whether it is heavier — a
+sturdy light box can carry a heavy one, a fragile heavy one cannot. Bortfeldt & Wäscher (2013,
+EJOR) list stacking/load-bearing among the practical constraints of container loading and
+note that much of the literature ignores such constraints. Real loading also considers
+delivery order (last stop loaded first), centre of gravity and axle loads, which we do not
+model. Our heavy-below is a simple proxy for load-bearing; we do not claim it is what any
+specific company uses. "Load heavy items first, at the bottom" is a common rule of thumb,
+but we only report what we measured.
+
 ### Q13. Does the EP sort rule matter?
 On our distributions, barely: volume, height and base-area sorting give nearly identical bin
 counts. → summary C rows `ep_volume / ep_height / ep_area`. The box recommendation still tries
