@@ -2,6 +2,9 @@
 
 **DCCS309 Algorithms — Group A1**: 전재형 (Jaehyeong Jeon), 정진형 (Jinhyeong Jeong), 박은혁 (Eunhyeok Park)
 
+**Results website (figures, animations, 3D viewers, explanations):**
+https://jbr-313.github.io/A1-bin-packing/
+
 We solve the **same** randomly generated parcel sets with several algorithms ("recipes")
 and measure how **runtime** and **solution quality** split apart as the input size *n* grows —
 first for 1D bin packing, then for 3D packing with real loading rules, and finally for
@@ -51,6 +54,7 @@ python -m experiments.exp_a --quick   # 1D exact vs greedy        (~5 min)
 python -m experiments.exp_b --quick   # 1D heuristics at scale    (~20 s)
 python -m experiments.exp_c --quick   # 3D packing + box choice   (~45 s)
 python -m experiments.summary         # writes results/summary.md
+python -m experiments.build_site      # writes index.html (the results website) from default-mode CSVs
 
 # presentation numbers: drop --quick (exp_a takes about an hour)
 ```
