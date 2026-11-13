@@ -34,4 +34,4 @@ def pack(items: list[Item3D], box: Box) -> Result:
         x += w
         row_d = max(row_d, d)
         layer_h = max(layer_h, h)
-    return Result(bins, placements=placements)
+    return Result(bins, placements=placements, order=list(range(len(items))))

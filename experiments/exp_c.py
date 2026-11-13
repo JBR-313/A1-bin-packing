@@ -24,6 +24,7 @@ from packing.threed import box_recommend, extreme_point, naive
 from packing.threed.constraints import support_violations, weight_violations
 from packing.threed.geometry import lower_bound_3d, validate_3d, volume
 from packing.viz import plots
+from packing.viz.animate3d import write_animation
 from packing.viz.view3d import write_comparison
 
 BOX = cfg.C3_CONTAINER
@@ -139,6 +140,24 @@ def write_views(mode: str, kept: dict) -> None:
                          "Box choice per order: naive vs recommendation", max_bins=2)
 
 
+def write_animations(mode: str) -> None:
+    """Drop-in animations on one fixed instance (same items in every panel)."""
+    items = make_instance(cfg.C3_ANIM_N, cfg.C3_ANIM_DIST, cfg.BASE_SEED)
+    sup = cfg.C3_SUPPORT_RATIO
+    tag = f"{cfg.C3_ANIM_DIST}, n={cfg.C3_ANIM_N}, seed={cfg.BASE_SEED}"
+    epv = extreme_point.pack(items, BOX)
+    write_animation(HTML_DIR / f"anim_naive_vs_ep_{mode}.html",
+                    [("3D Naive", items, BOX, naive.pack(items, BOX)),
+                     ("Extreme Point", items, BOX, epv)],
+                    f"Packing order, one item at a time ({tag})")
+    write_animation(HTML_DIR / f"anim_constraints_{mode}.html",
+                    [("EP (no constraints)", items, BOX, epv),
+                     ("EP heaviest first + support + heavy-below", items, BOX,
+                      extreme_point.pack(items, BOX, sort="weight", support_ratio=sup,
+                                         heavy_below=True))],
+                    f"Loading rules on / off ({tag})")
+
+
 def main() -> None:
     mode = parse_mode(__doc__)
     m = cfg.MODES[mode]
@@ -152,6 +171,7 @@ def main() -> None:
     print(f"wrote {out}")
     plots.plot_exp_c(df, FIG_DIR, mode, cfg.VOID_LIMIT)
     write_views(mode, kept)
+    write_animations(mode)
     print(f"done in {time.perf_counter() - t0:.1f}s")
 
 

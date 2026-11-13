@@ -35,7 +35,7 @@ class Result:
 
     bins: list of bins, each a list of item indices. None when there is no answer
           (timeout / skipped / infeasible).
-    placements: 3D only — position and orientation of every item.
+    placements: 3D only — position and orientation of every item, sorted by item id.
     runtime_s: wall time of the algorithm call only (set by the bench runner).
     """
     bins: list[list[int]] | None
@@ -43,6 +43,7 @@ class Result:
     runtime_s: float = 0.0
     extra: dict = field(default_factory=dict)
     placements: list[Placement] | None = None
+    order: list[int] | None = None  # 3D: item ids in the order they were placed (animation)
 
     @property
     def num_bins(self) -> int | None:

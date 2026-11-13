@@ -34,6 +34,7 @@ C3_DISTS = ("uniform", "flat", "long", "mixed")
 C3_N = {"quick": [20, 50, 100, 200], "default": [20, 50, 100, 200, 500],
         "full": [20, 50, 100, 200, 500]}
 C3_VIEW_DIST, C3_VIEW_N = "mixed", 100  # instance shown in the 3D HTML viewer
+C3_ANIM_DIST, C3_ANIM_N = "mixed", 60    # instance used for the drop-in animations
 
 # Box recommendation
 BOX_CATALOG = [(20, 15, 10), (30, 20, 15), (35, 25, 20), (40, 30, 25), (50, 40, 30), (60, 45, 40)]

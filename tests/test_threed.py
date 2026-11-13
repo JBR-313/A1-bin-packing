@@ -264,3 +264,54 @@ def test_weight_first_valid_random(dist):
         validate_3d(items, BOX, r.placements)
         assert support_violations(r.placements, 0.7) == []
         assert weight_violations(items, r.placements) == []
+
+
+# ---------------------------------------------------------------- animation
+def _replay(fig, upto=None):
+    """Apply frames in order like the browser does; return the trace data afterwards."""
+    state = {i: tr for i, tr in enumerate(fig.data)}
+    for fr in fig.frames[:upto]:
+        for idx, tr in zip(fr.traces, fr.data):
+            state[idx] = tr
+    return state
+
+
+def _boxes_from_mesh(mesh):
+    xs, ys, zs = list(mesh.x), list(mesh.y), list(mesh.z)
+    out = set()
+    for b in range(0, len(xs), 8):  # 8 corners per box, corner 0 = min, corner 6 = max
+        out.add((xs[b], ys[b], zs[b], xs[b + 6] - xs[b], ys[b + 6] - ys[b], zs[b + 6] - zs[b]))
+    return out
+
+
+def test_animation_last_frame_matches_packing(tmp_path):
+    from packing.viz.animate3d import (TRACES_PER_PANEL, build_animation, frame_boxes,
+                                       landing_boxes, write_animation)
+    items = gen_3d(25, "mixed", 0)
+    nv, e = naive.pack(items, BOX), ep.pack(items, BOX)
+    panels = [("Naive", items, BOX, nv), ("EP", items, BOX, e)]
+    fig = build_animation(panels, "t", drop_steps=3)
+    assert len(fig.frames) == 3 * len(items)
+    state = _replay(fig)
+    for p, (_, _, _, res) in enumerate(panels):
+        want = {b[:6] for b in landing_boxes(items, BOX, res)}
+        placed = state[p * TRACES_PER_PANEL + 1]
+        assert _boxes_from_mesh(placed) == want          # every item in its final spot
+        assert len(state[p * TRACES_PER_PANEL + 3].x) == 0  # nothing still falling
+        assert {b[:6] for b in frame_boxes(items, BOX, res)[-1]} == want
+    out = write_animation(tmp_path / "a.html", panels, "t")
+    assert out.stat().st_size < 10e6
+
+
+def test_animation_slider_steps_are_complete_states():
+    from packing.viz.animate3d import TRACES_PER_PANEL, build_animation
+    items = gen_3d(10, "uniform", 1)
+    fig = build_animation([("EP", items, BOX, ep.pack(items, BOX))], "t", drop_steps=3)
+    steps = fig.layout.sliders[0].steps
+    assert len(steps) == len(items)
+    names = {f.name: f for f in fig.frames}
+    for k, st in enumerate(steps):
+        fr = names[st.args[0][0]]
+        assert 1 in fr.traces  # landing frame carries the full placed set
+        assert len(fr.data[list(fr.traces).index(1)].x) == 8 * (k + 1)
+        assert TRACES_PER_PANEL == 4

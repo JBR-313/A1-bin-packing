@@ -125,7 +125,8 @@ def pack(items: list[Item3D], box: Box, sort: str = "volume", allow_rotation: bo
             raise ValueError(f"item {i} {it[:3]} does not fit container {box}")
     weights = [it[3] for it in items]
     bins: list[_Bin] = []
-    for i in sort_order(items, sort):
+    order = sort_order(items, sort)
+    for i in order:
         vol = volume(items[i])
         for b in bins:
             if b.free < vol:
@@ -142,6 +143,6 @@ def pack(items: list[Item3D], box: Box, sort: str = "volume", allow_rotation: bo
             # the floor point (0,0,0) always works in an empty bin (z = 0: no constraints)
             b.place(b.find(i, items[i], allow_rotation, support_ratio, heavy_below, weights))
     placements = sorted((p for b in bins for p in b.placed), key=lambda p: p.item_id)
-    return Result([[p.item_id for p in b.placed] for b in bins], placements=placements,
+    return Result([[p.item_id for p in b.placed] for b in bins], placements=placements, order=order,
                   extra={"sort": sort, "rotation": allow_rotation,
                          "support_ratio": support_ratio, "heavy_below": heavy_below})
