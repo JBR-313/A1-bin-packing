@@ -46,7 +46,10 @@ def plot_exp_a(df: pd.DataFrame, out_dir: Path, mode: str, timeout_s: float) -> 
     fig, axes = plt.subplots(1, len(dists), figsize=(6 * len(dists), 5), sharey=True)
     for ax, dist in zip(axes, dists):
         d = df[df.dist == dist]
-        done = _median(d[d.status.isin(["ok", "feasible"])], "runtime_s")
+        # timeout rule: an n with any timed-out rep is shown only as an X, not as a point
+        timed = d[d.status == "timeout"][["algorithm", "n"]].drop_duplicates()
+        keep = ~d.set_index(["algorithm", "n"]).index.isin(timed.set_index(["algorithm", "n"]).index)
+        done = _median(d[keep & d.status.isin(["ok", "feasible"])], "runtime_s")
         for alg in dict.fromkeys(d.algorithm):
             label, color, marker = STYLE[alg]
             a = done[done.algorithm == alg]
@@ -62,9 +65,10 @@ def plot_exp_a(df: pd.DataFrame, out_dir: Path, mode: str, timeout_s: float) -> 
         ax.set_xlabel("number of items n")
         ax.grid(True, which="both", alpha=0.3)
     axes[0].set_ylabel("runtime (s, median)")
-    axes[0].legend(loc="upper left")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=len(labels), frameon=False)
     fig.suptitle(f"Exact vs greedy: runtime  (X = gave up at {timeout_s:g}s)")
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     fig.savefig(out_dir / f"exp_a_runtime_{mode}.png")
     plt.close(fig)
 

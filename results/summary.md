@@ -2,102 +2,102 @@
 
 Generated 2026-11-13 by `python -m experiments.summary`.
 
-> **Warning:** contains `quick`-mode numbers (2 reps, 5 s limit). Do not put these in slides.
-
-## Experiment A — exact vs greedy (`quick` mode)
+## Experiment A — exact vs greedy (`default` mode)
 
 ### Where each method gives up
 
-| algorithm | dist | largest n proven optimal | largest n with an answer | gave up at n | median runtime at that largest n (s) |
-|---|---|---|---|---|---|
-| exhaustive | uniform | 10 | 10 | 11 | 4.4974 |
-| dp | uniform | 21 | 21 | 22 | 3.3849 |
-| mip | uniform | 24 | 50 | 100 | 4.7376 |
-| ffd | uniform | - | 200 | - | 0.0003 |
-| exhaustive | small | 10 | 10 | 11 | 3.7811 |
-| dp | small | 21 | 21 | 22 | 3.3946 |
-| mip | small | 200 | 200 | - | 0.3618 |
-| ffd | small | - | 200 | - | 0.0003 |
-| exhaustive | large | 9 | 9 | 10 | 0.4449 |
-| dp | large | 21 | 21 | 22 | 3.4637 |
-| mip | large | 50 | 50 | 100 | 2.7082 |
-| ffd | large | - | 200 | - | 0.0003 |
+An n counts as finished only if every rep finished within the time limit (one timeout → that n is `gave up`, larger n are not run). `-` under *gave up* means it never timed out up to *largest n tried*; DP is capped at n = 24 by memory (2^24 states), not by time.
+
+| algorithm | dist | largest n, all reps proven optimal | largest n, all reps answered | gave up at n | largest n tried | median runtime at largest answered n (s) |
+|---|---|---|---|---|---|---|
+| exhaustive | uniform | 10 | 10 | 11 | 11 | 4.5901 |
+| dp | uniform | 24 | 24 | - | 24 | 33.0787 |
+| mip | uniform | 20 | 50 | 100 | 100 | 58.5147 |
+| ffd | uniform | - | 200 | - | 200 | 0.0003 |
+| exhaustive | small | 10 | 10 | 11 | 11 | 3.7847 |
+| dp | small | 24 | 24 | - | 24 | 30.6221 |
+| mip | small | 200 | 200 | - | 200 | 0.3968 |
+| ffd | small | - | 200 | - | 200 | 0.0003 |
+| exhaustive | large | 10 | 10 | 11 | 11 | 4.893 |
+| dp | large | 24 | 24 | - | 24 | 31.0634 |
+| mip | large | 22 | 50 | 100 | 100 | 58.3241 |
+| ffd | large | - | 200 | - | 200 | 0.0003 |
 
 ### Do the exact methods agree?
 
-Instances solved to proven optimality by 2+ exact methods: **106**, disagreements: **0** (n range 4–21).
+Instances solved to proven optimality by 2+ exact methods: **302**, disagreements: **0** (n range 4–24).
 
 ### FFD / OPT (instances where OPT is known)
 
 | dist | instances | optimal_share | median | max |
 |---|---|---|---|---|
-| large | 43 | 100.0% | 1 | 1 |
-| small | 52 | 100.0% | 1 | 1 |
-| uniform | 39 | 97.4% | 1 | 1.1 |
+| large | 111 | 100.0% | 1 | 1 |
+| small | 130 | 100.0% | 1 | 1 |
+| uniform | 110 | 99.1% | 1 | 1.1 |
 
-## Experiment B — heuristics at scale (`quick` mode)
+## Experiment B — heuristics at scale (`default` mode)
 
 Median over reps. `bins/L` = bins used / lower bound ceil(sum/C).
 
 | dist | algorithm | n | status | bins_over_L | runtime_s |
 |---|---|---|---|---|---|
-| uniform | next_fit | 10 | ok | 1.2429 | 0.000005 |
-| uniform | next_fit | 100 | ok | 1.3558 | 0.000025 |
-| uniform | next_fit | 1000 | ok | 1.3237 | 0.000171 |
-| uniform | next_fit | 10000 | ok | 1.3232 | 0.002082 |
-| uniform | first_fit | 10 | ok | 1.1714 | 0.00002 |
-| uniform | first_fit | 100 | ok | 1.0712 | 0.000129 |
-| uniform | first_fit | 1000 | ok | 1.0487 | 0.001856 |
-| uniform | first_fit | 10000 | ok | 1.026 | 0.042011 |
-| uniform | best_fit | 10 | ok | 1.1714 | 0.00001 |
-| uniform | best_fit | 100 | ok | 1.0612 | 0.000035 |
-| uniform | best_fit | 1000 | ok | 1.0338 | 0.000519 |
-| uniform | best_fit | 10000 | ok | 1.0162 | 0.008696 |
-| uniform | ffd | 10 | ok | 1.0714 | 0.000018 |
-| uniform | ffd | 100 | ok | 1.0308 | 0.000135 |
-| uniform | ffd | 1000 | ok | 1.0099 | 0.001988 |
-| uniform | ffd | 10000 | ok | 1.0091 | 0.030402 |
-| uniform | mip | 10 | ok | 1.0714 | 0.012681 |
-| uniform | mip | 100 | timeout |  | 5.065509 |
-| small | next_fit | 10 | ok | 1 | 0.000007 |
-| small | next_fit | 100 | ok | 1.0801 | 0.000015 |
-| small | next_fit | 1000 | ok | 1.0811 | 0.000065 |
-| small | next_fit | 10000 | ok | 1.0875 | 0.000857 |
-| small | first_fit | 10 | ok | 1 | 0.000018 |
-| small | first_fit | 100 | ok | 1 | 0.000132 |
-| small | first_fit | 1000 | ok | 1.0039 | 0.001764 |
-| small | first_fit | 10000 | ok | 1 | 0.029124 |
-| small | best_fit | 10 | ok | 1 | 0.000014 |
-| small | best_fit | 100 | ok | 1 | 0.000025 |
-| small | best_fit | 1000 | ok | 1.0039 | 0.000287 |
-| small | best_fit | 10000 | ok | 1.0004 | 0.004564 |
-| small | ffd | 10 | ok | 1 | 0.000029 |
-| small | ffd | 100 | ok | 1 | 0.000134 |
-| small | ffd | 1000 | ok | 1 | 0.001937 |
-| small | ffd | 10000 | ok | 1 | 0.029059 |
-| small | mip | 10 | ok | 1 | 0.003548 |
-| small | mip | 100 | ok | 1 | 0.060881 |
-| small | mip | 1000 | timeout |  | 6.24645 |
-| large | next_fit | 10 | ok | 1.375 | 0.000004 |
-| large | next_fit | 100 | ok | 1.3451 | 0.000011 |
-| large | next_fit | 1000 | ok | 1.3586 | 0.000104 |
-| large | next_fit | 10000 | ok | 1.3534 | 0.01433 |
-| large | first_fit | 10 | ok | 1.2292 | 0.000014 |
-| large | first_fit | 100 | ok | 1.1982 | 0.000128 |
-| large | first_fit | 1000 | ok | 1.1585 | 0.001834 |
-| large | first_fit | 10000 | ok | 1.1353 | 0.02705 |
-| large | best_fit | 10 | ok | 1.2292 | 0.000023 |
-| large | best_fit | 100 | ok | 1.191 | 0.000033 |
-| large | best_fit | 1000 | ok | 1.1495 | 0.000514 |
-| large | best_fit | 10000 | ok | 1.1316 | 0.009064 |
-| large | ffd | 10 | ok | 1.1458 | 0.000017 |
-| large | ffd | 100 | ok | 1.1614 | 0.00014 |
-| large | ffd | 1000 | ok | 1.1398 | 0.002227 |
-| large | ffd | 10000 | ok | 1.1275 | 0.029207 |
-| large | mip | 10 | ok | 1.1458 | 0.01206 |
-| large | mip | 100 | timeout |  | 5.095159 |
+| uniform | next_fit | 10 | ok | 1.3333 | 0.000002 |
+| uniform | next_fit | 100 | ok | 1.2941 | 0.000008 |
+| uniform | next_fit | 1000 | ok | 1.3238 | 0.000084 |
+| uniform | next_fit | 10000 | ok | 1.325 | 0.001659 |
+| uniform | first_fit | 10 | ok | 1.1667 | 0.000011 |
+| uniform | first_fit | 100 | ok | 1.0784 | 0.000132 |
+| uniform | first_fit | 1000 | ok | 1.0476 | 0.001841 |
+| uniform | first_fit | 10000 | ok | 1.0241 | 0.02685 |
+| uniform | best_fit | 10 | ok | 1.1667 | 0.000003 |
+| uniform | best_fit | 100 | ok | 1.0625 | 0.000029 |
+| uniform | best_fit | 1000 | ok | 1.0357 | 0.000434 |
+| uniform | best_fit | 10000 | ok | 1.0148 | 0.007767 |
+| uniform | ffd | 10 | ok | 1.1667 | 0.000014 |
+| uniform | ffd | 100 | ok | 1.0208 | 0.000134 |
+| uniform | ffd | 1000 | ok | 1.0081 | 0.001982 |
+| uniform | ffd | 10000 | ok | 1.0059 | 0.029724 |
+| uniform | mip | 10 | ok | 1.1667 | 0.007542 |
+| uniform | mip | 100 | timeout |  | 10.074613 |
+| small | next_fit | 10 | ok | 1 | 0.000002 |
+| small | next_fit | 100 | ok | 1.0769 | 0.000006 |
+| small | next_fit | 1000 | ok | 1.0859 | 0.000059 |
+| small | next_fit | 10000 | ok | 1.088 | 0.001012 |
+| small | first_fit | 10 | ok | 1 | 0.00001 |
+| small | first_fit | 100 | ok | 1 | 0.000121 |
+| small | first_fit | 1000 | ok | 1 | 0.001757 |
+| small | first_fit | 10000 | ok | 1.0008 | 0.025672 |
+| small | best_fit | 10 | ok | 1 | 0.000002 |
+| small | best_fit | 100 | ok | 1 | 0.00002 |
+| small | best_fit | 1000 | ok | 1 | 0.000267 |
+| small | best_fit | 10000 | ok | 1.0008 | 0.004127 |
+| small | ffd | 10 | ok | 1 | 0.000011 |
+| small | ffd | 100 | ok | 1 | 0.00013 |
+| small | ffd | 1000 | ok | 1 | 0.001842 |
+| small | ffd | 10000 | ok | 1 | 0.027445 |
+| small | mip | 10 | ok | 1 | 0.003001 |
+| small | mip | 100 | ok | 1 | 0.064589 |
+| small | mip | 1000 | timeout |  | 10.766957 |
+| large | next_fit | 10 | ok | 1.2857 | 0.000002 |
+| large | next_fit | 100 | ok | 1.3134 | 0.000008 |
+| large | next_fit | 1000 | ok | 1.3591 | 0.000111 |
+| large | next_fit | 10000 | ok | 1.3549 | 0.001537 |
+| large | first_fit | 10 | ok | 1.1429 | 0.000013 |
+| large | first_fit | 100 | ok | 1.1918 | 0.000133 |
+| large | first_fit | 1000 | ok | 1.1542 | 0.001917 |
+| large | first_fit | 10000 | ok | 1.1357 | 0.028396 |
+| large | best_fit | 10 | ok | 1.1429 | 0.000003 |
+| large | best_fit | 100 | ok | 1.1791 | 0.00003 |
+| large | best_fit | 1000 | ok | 1.1452 | 0.000501 |
+| large | best_fit | 10000 | ok | 1.1322 | 0.011246 |
+| large | ffd | 10 | ok | 1.1429 | 0.000013 |
+| large | ffd | 100 | ok | 1.1765 | 0.000137 |
+| large | ffd | 1000 | ok | 1.1335 | 0.002152 |
+| large | ffd | 10000 | ok | 1.1268 | 0.035181 |
+| large | mip | 10 | ok | 1.1429 | 0.010688 |
+| large | mip | 100 | feasible,timeout | 1.1884 | 10.129804 |
 
-## Experiment C — 3D packing and loading (`quick` mode)
+## Experiment C — 3D packing and loading (`default` mode)
 
 ### Bins, fill rate and runtime per n
 
@@ -105,119 +105,245 @@ Container (100, 100, 100), item sides (5, 50), median over reps. `fill_rate` = i
 
 | dist | algorithm | n | status | bins | L | bins_over_L | fill_rate | runtime_s |
 |---|---|---|---|---|---|---|---|---|
-| uniform | naive | 20 | ok | 2 | 1 | 2 | 0.226 | 0.00005 |
-| uniform | naive | 50 | ok | 4 | 1 | 4 | 0.208 | 0.000081 |
-| uniform | naive | 100 | ok | 7.5 | 3 | 2.5 | 0.285 | 0.000152 |
-| uniform | naive | 200 | ok | 15 | 4.5 | 3.35 | 0.267 | 0.000472 |
-| uniform | ep_volume | 20 | ok | 1 | 1 | 1 | 0.453 | 0.002259 |
-| uniform | ep_volume | 50 | ok | 1.5 | 1 | 1.5 | 0.615 | 0.0202 |
-| uniform | ep_volume | 100 | ok | 3 | 3 | 1 | 0.711 | 0.047066 |
-| uniform | ep_volume | 200 | ok | 5 | 4.5 | 1.125 | 0.8 | 0.163948 |
-| uniform | ep_height | 20 | ok | 1 | 1 | 1 | 0.453 | 0.002474 |
-| uniform | ep_height | 50 | ok | 2 | 1 | 2 | 0.416 | 0.020773 |
-| uniform | ep_height | 100 | ok | 3 | 3 | 1 | 0.711 | 0.054069 |
-| uniform | ep_height | 200 | ok | 5.5 | 4.5 | 1.225 | 0.73 | 0.201196 |
-| uniform | ep_area | 20 | ok | 1 | 1 | 1 | 0.453 | 0.002399 |
-| uniform | ep_area | 50 | ok | 1.5 | 1 | 1.5 | 0.615 | 0.019734 |
-| uniform | ep_area | 100 | ok | 3 | 3 | 1 | 0.711 | 0.042473 |
-| uniform | ep_area | 200 | ok | 5 | 4.5 | 1.125 | 0.8 | 0.157143 |
-| uniform | ep_support | 20 | ok | 1 | 1 | 1 | 0.453 | 0.00279 |
-| uniform | ep_support | 50 | ok | 2 | 1 | 2 | 0.416 | 0.025014 |
-| uniform | ep_support | 100 | ok | 3 | 3 | 1 | 0.711 | 0.046857 |
-| uniform | ep_support | 200 | ok | 5 | 4.5 | 1.125 | 0.8 | 0.184887 |
-| uniform | ep_support_weight | 20 | ok | 1.5 | 1 | 1.5 | 0.326 | 0.004214 |
-| uniform | ep_support_weight | 50 | ok | 2 | 1 | 2 | 0.416 | 0.030444 |
-| uniform | ep_support_weight | 100 | ok | 4 | 3 | 1.333 | 0.533 | 0.05854 |
-| uniform | ep_support_weight | 200 | ok | 6 | 4.5 | 1.35 | 0.667 | 0.233071 |
-| flat | naive | 20 | ok | 1 | 1 | 1 | 0.257 | 0.000065 |
-| flat | naive | 50 | ok | 2 | 1 | 2 | 0.319 | 0.000073 |
-| flat | naive | 100 | ok | 4 | 2 | 2 | 0.363 | 0.000155 |
-| flat | naive | 200 | ok | 7 | 3 | 2.333 | 0.409 | 0.00042 |
-| flat | ep_volume | 20 | ok | 1 | 1 | 1 | 0.257 | 0.00199 |
-| flat | ep_volume | 50 | ok | 1 | 1 | 1 | 0.638 | 0.031178 |
-| flat | ep_volume | 100 | ok | 2 | 2 | 1 | 0.725 | 0.105125 |
-| flat | ep_volume | 200 | ok | 4 | 3 | 1.333 | 0.716 | 0.385076 |
-| flat | ep_height | 20 | ok | 1 | 1 | 1 | 0.257 | 0.002496 |
-| flat | ep_height | 50 | ok | 1.5 | 1 | 1.5 | 0.468 | 0.024455 |
-| flat | ep_height | 100 | ok | 2 | 2 | 1 | 0.725 | 0.075135 |
-| flat | ep_height | 200 | ok | 4 | 3 | 1.333 | 0.716 | 0.25328 |
-| flat | ep_area | 20 | ok | 1 | 1 | 1 | 0.257 | 0.002024 |
-| flat | ep_area | 50 | ok | 1 | 1 | 1 | 0.638 | 0.02533 |
-| flat | ep_area | 100 | ok | 2 | 2 | 1 | 0.725 | 0.093783 |
-| flat | ep_area | 200 | ok | 4 | 3 | 1.333 | 0.716 | 0.380574 |
-| flat | ep_support | 20 | ok | 1 | 1 | 1 | 0.257 | 0.001986 |
-| flat | ep_support | 50 | ok | 1.5 | 1 | 1.5 | 0.468 | 0.035267 |
-| flat | ep_support | 100 | ok | 3 | 2 | 1.5 | 0.483 | 0.107307 |
-| flat | ep_support | 200 | ok | 4 | 3 | 1.333 | 0.716 | 0.331863 |
-| flat | ep_support_weight | 20 | ok | 1.5 | 1 | 1.5 | 0.187 | 0.002577 |
-| flat | ep_support_weight | 50 | ok | 2.5 | 1 | 2.5 | 0.262 | 0.020548 |
-| flat | ep_support_weight | 100 | ok | 3 | 2 | 1.5 | 0.483 | 0.10405 |
-| flat | ep_support_weight | 200 | ok | 5 | 3 | 1.667 | 0.573 | 0.376512 |
-| long | naive | 20 | ok | 1 | 1 | 1 | 0.089 | 0.000036 |
-| long | naive | 50 | ok | 2.5 | 1 | 2.5 | 0.087 | 0.000096 |
-| long | naive | 100 | ok | 4 | 1 | 4 | 0.104 | 0.000179 |
-| long | naive | 200 | ok | 9 | 1 | 9 | 0.101 | 0.000306 |
-| long | ep_volume | 20 | ok | 1 | 1 | 1 | 0.089 | 0.002185 |
-| long | ep_volume | 50 | ok | 1 | 1 | 1 | 0.209 | 0.019552 |
-| long | ep_volume | 100 | ok | 1 | 1 | 1 | 0.418 | 0.114463 |
-| long | ep_volume | 200 | ok | 2 | 1 | 2 | 0.456 | 0.763675 |
-| long | ep_height | 20 | ok | 1 | 1 | 1 | 0.089 | 0.002186 |
-| long | ep_height | 50 | ok | 1 | 1 | 1 | 0.209 | 0.017719 |
-| long | ep_height | 100 | ok | 1 | 1 | 1 | 0.418 | 0.120452 |
-| long | ep_height | 200 | ok | 2 | 1 | 2 | 0.456 | 0.987926 |
-| long | ep_area | 20 | ok | 1 | 1 | 1 | 0.089 | 0.001975 |
-| long | ep_area | 50 | ok | 1 | 1 | 1 | 0.209 | 0.016165 |
-| long | ep_area | 100 | ok | 1 | 1 | 1 | 0.418 | 0.110755 |
-| long | ep_area | 200 | ok | 2 | 1 | 2 | 0.456 | 0.819315 |
-| long | ep_support | 20 | ok | 1 | 1 | 1 | 0.089 | 0.002065 |
-| long | ep_support | 50 | ok | 1 | 1 | 1 | 0.209 | 0.01736 |
-| long | ep_support | 100 | ok | 1 | 1 | 1 | 0.418 | 0.119274 |
-| long | ep_support | 200 | ok | 2 | 1 | 2 | 0.456 | 0.739469 |
-| long | ep_support_weight | 20 | ok | 1 | 1 | 1 | 0.089 | 0.00179 |
-| long | ep_support_weight | 50 | ok | 1.5 | 1 | 1.5 | 0.156 | 0.022922 |
-| long | ep_support_weight | 100 | ok | 2 | 1 | 2 | 0.209 | 0.171183 |
-| long | ep_support_weight | 200 | ok | 2 | 1 | 2 | 0.456 | 0.739782 |
-| mixed | naive | 20 | ok | 2 | 1 | 2 | 0.139 | 0.000048 |
-| mixed | naive | 50 | ok | 3.5 | 1 | 3.5 | 0.176 | 0.000084 |
-| mixed | naive | 100 | ok | 7 | 2 | 3.5 | 0.177 | 0.0002 |
-| mixed | naive | 200 | ok | 14.5 | 3 | 4.833 | 0.18 | 0.000372 |
-| mixed | ep_volume | 20 | ok | 1 | 1 | 1 | 0.278 | 0.002159 |
-| mixed | ep_volume | 50 | ok | 1 | 1 | 1 | 0.614 | 0.025167 |
-| mixed | ep_volume | 100 | ok | 2 | 2 | 1 | 0.621 | 0.059809 |
-| mixed | ep_volume | 200 | ok | 3.5 | 3 | 1.167 | 0.754 | 0.256493 |
-| mixed | ep_height | 20 | ok | 1 | 1 | 1 | 0.278 | 0.001983 |
-| mixed | ep_height | 50 | ok | 1 | 1 | 1 | 0.614 | 0.021261 |
-| mixed | ep_height | 100 | ok | 2 | 2 | 1 | 0.621 | 0.08177 |
-| mixed | ep_height | 200 | ok | 3.5 | 3 | 1.167 | 0.754 | 0.308419 |
-| mixed | ep_area | 20 | ok | 1 | 1 | 1 | 0.278 | 0.002191 |
-| mixed | ep_area | 50 | ok | 1 | 1 | 1 | 0.614 | 0.023284 |
-| mixed | ep_area | 100 | ok | 2 | 2 | 1 | 0.621 | 0.075416 |
-| mixed | ep_area | 200 | ok | 3.5 | 3 | 1.167 | 0.754 | 0.242485 |
-| mixed | ep_support | 20 | ok | 1 | 1 | 1 | 0.278 | 0.002031 |
-| mixed | ep_support | 50 | ok | 1 | 1 | 1 | 0.614 | 0.020272 |
-| mixed | ep_support | 100 | ok | 2 | 2 | 1 | 0.621 | 0.061118 |
-| mixed | ep_support | 200 | ok | 4 | 3 | 1.333 | 0.653 | 0.282978 |
-| mixed | ep_support_weight | 20 | ok | 1 | 1 | 1 | 0.278 | 0.002416 |
-| mixed | ep_support_weight | 50 | ok | 2 | 1 | 2 | 0.307 | 0.026009 |
-| mixed | ep_support_weight | 100 | ok | 3 | 2 | 1.5 | 0.414 | 0.085623 |
-| mixed | ep_support_weight | 200 | ok | 4 | 3 | 1.333 | 0.653 | 0.317215 |
+| uniform | naive | 20 | ok | 2 | 1 | 2 | 0.199 | 0.00003 |
+| uniform | naive | 50 | ok | 4 | 1 | 4 | 0.218 | 0.000101 |
+| uniform | naive | 100 | ok | 8 | 3 | 2.667 | 0.261 | 0.000138 |
+| uniform | naive | 200 | ok | 14 | 5 | 3.2 | 0.279 | 0.000266 |
+| uniform | naive | 500 | ok | 37 | 11 | 3.364 | 0.288 | 0.000719 |
+| uniform | ep_volume_norot | 20 | ok | 1 | 1 | 1 | 0.333 | 0.001692 |
+| uniform | ep_volume_norot | 50 | ok | 2 | 1 | 2 | 0.437 | 0.009681 |
+| uniform | ep_volume_norot | 100 | ok | 3 | 3 | 1 | 0.696 | 0.018138 |
+| uniform | ep_volume_norot | 200 | ok | 6 | 5 | 1.25 | 0.712 | 0.05163 |
+| uniform | ep_volume_norot | 500 | ok | 13 | 11 | 1.182 | 0.822 | 0.209551 |
+| uniform | ep_volume | 20 | ok | 1 | 1 | 1 | 0.333 | 0.00193 |
+| uniform | ep_volume | 50 | ok | 2 | 1 | 2 | 0.495 | 0.015398 |
+| uniform | ep_volume | 100 | ok | 3 | 3 | 1 | 0.696 | 0.039853 |
+| uniform | ep_volume | 200 | ok | 5 | 5 | 1.2 | 0.828 | 0.139215 |
+| uniform | ep_volume | 500 | ok | 12 | 11 | 1.091 | 0.883 | 0.910021 |
+| uniform | ep_height | 20 | ok | 1 | 1 | 1 | 0.333 | 0.002226 |
+| uniform | ep_height | 50 | ok | 2 | 1 | 2 | 0.437 | 0.01633 |
+| uniform | ep_height | 100 | ok | 3 | 3 | 1 | 0.696 | 0.046447 |
+| uniform | ep_height | 200 | ok | 5 | 5 | 1.25 | 0.755 | 0.15263 |
+| uniform | ep_height | 500 | ok | 13 | 11 | 1.182 | 0.822 | 0.796793 |
+| uniform | ep_area | 20 | ok | 1 | 1 | 1 | 0.333 | 0.002158 |
+| uniform | ep_area | 50 | ok | 2 | 1 | 2 | 0.495 | 0.019201 |
+| uniform | ep_area | 100 | ok | 3 | 3 | 1 | 0.696 | 0.057738 |
+| uniform | ep_area | 200 | ok | 5 | 5 | 1.2 | 0.828 | 0.159272 |
+| uniform | ep_area | 500 | ok | 13 | 11 | 1.182 | 0.822 | 0.761136 |
+| uniform | ep_support_50 | 20 | ok | 1 | 1 | 1 | 0.333 | 0.002269 |
+| uniform | ep_support_50 | 50 | ok | 2 | 1 | 2 | 0.495 | 0.015791 |
+| uniform | ep_support_50 | 100 | ok | 3 | 3 | 1 | 0.696 | 0.059552 |
+| uniform | ep_support_50 | 200 | ok | 5 | 5 | 1.2 | 0.828 | 0.168039 |
+| uniform | ep_support_50 | 500 | ok | 13 | 11 | 1.182 | 0.835 | 1.060457 |
+| uniform | ep_support_90 | 20 | ok | 1 | 1 | 1 | 0.333 | 0.002055 |
+| uniform | ep_support_90 | 50 | ok | 2 | 1 | 2 | 0.437 | 0.018243 |
+| uniform | ep_support_90 | 100 | ok | 3 | 3 | 1 | 0.683 | 0.04304 |
+| uniform | ep_support_90 | 200 | ok | 6 | 5 | 1.25 | 0.712 | 0.16984 |
+| uniform | ep_support_90 | 500 | ok | 13 | 11 | 1.182 | 0.815 | 1.017396 |
+| uniform | ep_support | 20 | ok | 1 | 1 | 1 | 0.333 | 0.002041 |
+| uniform | ep_support | 50 | ok | 2 | 1 | 2 | 0.437 | 0.014926 |
+| uniform | ep_support | 100 | ok | 3 | 3 | 1 | 0.696 | 0.040389 |
+| uniform | ep_support | 200 | ok | 5 | 5 | 1.2 | 0.828 | 0.148894 |
+| uniform | ep_support | 500 | ok | 13 | 11 | 1.182 | 0.822 | 1.003967 |
+| uniform | ep_support_weight | 20 | ok | 1 | 1 | 1 | 0.326 | 0.002617 |
+| uniform | ep_support_weight | 50 | ok | 2 | 1 | 2 | 0.396 | 0.019724 |
+| uniform | ep_support_weight | 100 | ok | 4 | 3 | 1.333 | 0.554 | 0.050893 |
+| uniform | ep_support_weight | 200 | ok | 6 | 5 | 1.4 | 0.69 | 0.181587 |
+| uniform | ep_support_weight | 500 | ok | 14 | 11 | 1.273 | 0.774 | 1.175472 |
+| flat | naive | 20 | ok | 1 | 1 | 1 | 0.288 | 0.000036 |
+| flat | naive | 50 | ok | 2 | 1 | 2 | 0.334 | 0.000075 |
+| flat | naive | 100 | ok | 4 | 2 | 2 | 0.362 | 0.000136 |
+| flat | naive | 200 | ok | 7 | 3 | 2.333 | 0.401 | 0.000296 |
+| flat | naive | 500 | ok | 17 | 8 | 2.125 | 0.418 | 0.000697 |
+| flat | ep_volume_norot | 20 | ok | 1 | 1 | 1 | 0.288 | 0.001962 |
+| flat | ep_volume_norot | 50 | ok | 2 | 1 | 2 | 0.34 | 0.014488 |
+| flat | ep_volume_norot | 100 | ok | 3 | 2 | 1.5 | 0.482 | 0.042274 |
+| flat | ep_volume_norot | 200 | ok | 4 | 3 | 1.333 | 0.693 | 0.131715 |
+| flat | ep_volume_norot | 500 | ok | 10 | 8 | 1.25 | 0.709 | 0.62809 |
+| flat | ep_volume | 20 | ok | 1 | 1 | 1 | 0.288 | 0.002392 |
+| flat | ep_volume | 50 | ok | 1 | 1 | 1 | 0.668 | 0.029812 |
+| flat | ep_volume | 100 | ok | 2 | 2 | 1 | 0.724 | 0.079918 |
+| flat | ep_volume | 200 | ok | 4 | 3 | 1.333 | 0.702 | 0.333829 |
+| flat | ep_volume | 500 | ok | 9 | 8 | 1.125 | 0.788 | 2.0573 |
+| flat | ep_height | 20 | ok | 1 | 1 | 1 | 0.288 | 0.001966 |
+| flat | ep_height | 50 | ok | 1 | 1 | 1 | 0.663 | 0.024448 |
+| flat | ep_height | 100 | ok | 2 | 2 | 1 | 0.724 | 0.065267 |
+| flat | ep_height | 200 | ok | 4 | 3 | 1.333 | 0.702 | 0.264612 |
+| flat | ep_height | 500 | ok | 9 | 8 | 1.125 | 0.788 | 1.389389 |
+| flat | ep_area | 20 | ok | 1 | 1 | 1 | 0.288 | 0.002147 |
+| flat | ep_area | 50 | ok | 1 | 1 | 1 | 0.668 | 0.025262 |
+| flat | ep_area | 100 | ok | 2 | 2 | 1 | 0.724 | 0.086665 |
+| flat | ep_area | 200 | ok | 4 | 3 | 1.333 | 0.702 | 0.355123 |
+| flat | ep_area | 500 | ok | 9 | 8 | 1.25 | 0.763 | 2.005282 |
+| flat | ep_support_50 | 20 | ok | 1 | 1 | 1 | 0.288 | 0.001982 |
+| flat | ep_support_50 | 50 | ok | 1 | 1 | 1 | 0.668 | 0.024404 |
+| flat | ep_support_50 | 100 | ok | 2 | 2 | 1 | 0.712 | 0.095599 |
+| flat | ep_support_50 | 200 | ok | 4 | 3 | 1.333 | 0.702 | 0.334538 |
+| flat | ep_support_50 | 500 | ok | 10 | 8 | 1.25 | 0.726 | 1.999415 |
+| flat | ep_support_90 | 20 | ok | 1 | 1 | 1 | 0.288 | 0.001822 |
+| flat | ep_support_90 | 50 | ok | 1 | 1 | 1 | 0.668 | 0.023821 |
+| flat | ep_support_90 | 100 | ok | 3 | 2 | 1.5 | 0.484 | 0.095001 |
+| flat | ep_support_90 | 200 | ok | 4 | 3 | 1.333 | 0.697 | 0.34923 |
+| flat | ep_support_90 | 500 | ok | 10 | 8 | 1.25 | 0.724 | 2.011064 |
+| flat | ep_support | 20 | ok | 1 | 1 | 1 | 0.288 | 0.001857 |
+| flat | ep_support | 50 | ok | 1 | 1 | 1 | 0.663 | 0.027167 |
+| flat | ep_support | 100 | ok | 2 | 2 | 1 | 0.704 | 0.083766 |
+| flat | ep_support | 200 | ok | 4 | 3 | 1.333 | 0.702 | 0.325414 |
+| flat | ep_support | 500 | ok | 10 | 8 | 1.25 | 0.711 | 2.041675 |
+| flat | ep_support_weight | 20 | ok | 2 | 1 | 2 | 0.152 | 0.002597 |
+| flat | ep_support_weight | 50 | ok | 2 | 1 | 2 | 0.298 | 0.020746 |
+| flat | ep_support_weight | 100 | ok | 3 | 2 | 1.5 | 0.475 | 0.089102 |
+| flat | ep_support_weight | 200 | ok | 5 | 3 | 1.667 | 0.562 | 0.348577 |
+| flat | ep_support_weight | 500 | ok | 11 | 8 | 1.375 | 0.658 | 2.118405 |
+| long | naive | 20 | ok | 2 | 1 | 2 | 0.047 | 0.00003 |
+| long | naive | 50 | ok | 2 | 1 | 2 | 0.105 | 0.000068 |
+| long | naive | 100 | ok | 4 | 1 | 4 | 0.097 | 0.000132 |
+| long | naive | 200 | ok | 9 | 1 | 9 | 0.099 | 0.000264 |
+| long | naive | 500 | ok | 21 | 3 | 7 | 0.102 | 0.000703 |
+| long | ep_volume_norot | 20 | ok | 1 | 1 | 1 | 0.092 | 0.001529 |
+| long | ep_volume_norot | 50 | ok | 1 | 1 | 1 | 0.21 | 0.012325 |
+| long | ep_volume_norot | 100 | ok | 1 | 1 | 1 | 0.433 | 0.082853 |
+| long | ep_volume_norot | 200 | ok | 2 | 1 | 2 | 0.444 | 0.333182 |
+| long | ep_volume_norot | 500 | ok | 4 | 3 | 1.333 | 0.563 | 1.800587 |
+| long | ep_volume | 20 | ok | 1 | 1 | 1 | 0.092 | 0.00177 |
+| long | ep_volume | 50 | ok | 1 | 1 | 1 | 0.21 | 0.015738 |
+| long | ep_volume | 100 | ok | 1 | 1 | 1 | 0.433 | 0.116089 |
+| long | ep_volume | 200 | ok | 2 | 1 | 2 | 0.444 | 0.713317 |
+| long | ep_volume | 500 | ok | 3 | 3 | 1 | 0.719 | 4.814264 |
+| long | ep_height | 20 | ok | 1 | 1 | 1 | 0.092 | 0.002203 |
+| long | ep_height | 50 | ok | 1 | 1 | 1 | 0.21 | 0.017919 |
+| long | ep_height | 100 | ok | 1 | 1 | 1 | 0.433 | 0.120511 |
+| long | ep_height | 200 | ok | 2 | 1 | 2 | 0.444 | 1.041536 |
+| long | ep_height | 500 | ok | 3 | 3 | 1 | 0.719 | 5.954692 |
+| long | ep_area | 20 | ok | 1 | 1 | 1 | 0.092 | 0.001772 |
+| long | ep_area | 50 | ok | 1 | 1 | 1 | 0.21 | 0.014278 |
+| long | ep_area | 100 | ok | 1 | 1 | 1 | 0.433 | 0.098754 |
+| long | ep_area | 200 | ok | 2 | 1 | 2 | 0.444 | 0.794536 |
+| long | ep_area | 500 | ok | 3 | 3 | 1 | 0.719 | 5.363503 |
+| long | ep_support_50 | 20 | ok | 1 | 1 | 1 | 0.092 | 0.001762 |
+| long | ep_support_50 | 50 | ok | 1 | 1 | 1 | 0.21 | 0.017062 |
+| long | ep_support_50 | 100 | ok | 1 | 1 | 1 | 0.433 | 0.106486 |
+| long | ep_support_50 | 200 | ok | 2 | 1 | 2 | 0.444 | 0.74363 |
+| long | ep_support_50 | 500 | ok | 3 | 3 | 1 | 0.681 | 5.030771 |
+| long | ep_support_90 | 20 | ok | 1 | 1 | 1 | 0.092 | 0.001794 |
+| long | ep_support_90 | 50 | ok | 1 | 1 | 1 | 0.21 | 0.016877 |
+| long | ep_support_90 | 100 | ok | 1 | 1 | 1 | 0.433 | 0.118988 |
+| long | ep_support_90 | 200 | ok | 2 | 1 | 2 | 0.444 | 0.746439 |
+| long | ep_support_90 | 500 | ok | 4 | 3 | 1.333 | 0.563 | 5.842655 |
+| long | ep_support | 20 | ok | 1 | 1 | 1 | 0.092 | 0.001919 |
+| long | ep_support | 50 | ok | 1 | 1 | 1 | 0.21 | 0.016369 |
+| long | ep_support | 100 | ok | 1 | 1 | 1 | 0.433 | 0.119792 |
+| long | ep_support | 200 | ok | 2 | 1 | 2 | 0.444 | 0.736496 |
+| long | ep_support | 500 | ok | 3 | 3 | 1 | 0.681 | 5.43653 |
+| long | ep_support_weight | 20 | ok | 1 | 1 | 1 | 0.092 | 0.001788 |
+| long | ep_support_weight | 50 | ok | 1 | 1 | 1 | 0.207 | 0.017623 |
+| long | ep_support_weight | 100 | ok | 2 | 1 | 2 | 0.217 | 0.191172 |
+| long | ep_support_weight | 200 | ok | 2 | 1 | 2 | 0.44 | 0.689522 |
+| long | ep_support_weight | 500 | ok | 4 | 3 | 1.333 | 0.539 | 5.397437 |
+| mixed | naive | 20 | ok | 2 | 1 | 2 | 0.151 | 0.000037 |
+| mixed | naive | 50 | ok | 3 | 1 | 3 | 0.179 | 0.00007 |
+| mixed | naive | 100 | ok | 7 | 2 | 3.5 | 0.183 | 0.000141 |
+| mixed | naive | 200 | ok | 14 | 3 | 4.667 | 0.198 | 0.000267 |
+| mixed | naive | 500 | ok | 34 | 7 | 4.857 | 0.198 | 0.000696 |
+| mixed | ep_volume_norot | 20 | ok | 1 | 1 | 1 | 0.301 | 0.001662 |
+| mixed | ep_volume_norot | 50 | ok | 1 | 1 | 1 | 0.525 | 0.013553 |
+| mixed | ep_volume_norot | 100 | ok | 2 | 2 | 1 | 0.639 | 0.040553 |
+| mixed | ep_volume_norot | 200 | ok | 4 | 3 | 1.333 | 0.679 | 0.082078 |
+| mixed | ep_volume_norot | 500 | ok | 8 | 7 | 1.143 | 0.78 | 0.392124 |
+| mixed | ep_volume | 20 | ok | 1 | 1 | 1 | 0.301 | 0.002914 |
+| mixed | ep_volume | 50 | ok | 1 | 1 | 1 | 0.599 | 0.022276 |
+| mixed | ep_volume | 100 | ok | 2 | 2 | 1 | 0.639 | 0.063929 |
+| mixed | ep_volume | 200 | ok | 4 | 3 | 1.333 | 0.744 | 0.274167 |
+| mixed | ep_volume | 500 | ok | 8 | 7 | 1.143 | 0.809 | 1.59972 |
+| mixed | ep_height | 20 | ok | 1 | 1 | 1 | 0.301 | 0.002041 |
+| mixed | ep_height | 50 | ok | 1 | 1 | 1 | 0.599 | 0.019625 |
+| mixed | ep_height | 100 | ok | 2 | 2 | 1 | 0.639 | 0.073475 |
+| mixed | ep_height | 200 | ok | 4 | 3 | 1.333 | 0.699 | 0.245885 |
+| mixed | ep_height | 500 | ok | 8 | 7 | 1.143 | 0.809 | 1.219758 |
+| mixed | ep_area | 20 | ok | 1 | 1 | 1 | 0.301 | 0.002251 |
+| mixed | ep_area | 50 | ok | 1 | 1 | 1 | 0.599 | 0.021623 |
+| mixed | ep_area | 100 | ok | 2 | 2 | 1 | 0.639 | 0.078277 |
+| mixed | ep_area | 200 | ok | 4 | 3 | 1.333 | 0.699 | 0.232494 |
+| mixed | ep_area | 500 | ok | 8 | 7 | 1.143 | 0.809 | 1.338884 |
+| mixed | ep_support_50 | 20 | ok | 1 | 1 | 1 | 0.301 | 0.001921 |
+| mixed | ep_support_50 | 50 | ok | 1 | 1 | 1 | 0.599 | 0.017996 |
+| mixed | ep_support_50 | 100 | ok | 2 | 2 | 1 | 0.639 | 0.062567 |
+| mixed | ep_support_50 | 200 | ok | 4 | 3 | 1.333 | 0.699 | 0.252536 |
+| mixed | ep_support_50 | 500 | ok | 8 | 7 | 1.143 | 0.809 | 1.515446 |
+| mixed | ep_support_90 | 20 | ok | 1 | 1 | 1 | 0.301 | 0.001887 |
+| mixed | ep_support_90 | 50 | ok | 1 | 1 | 1 | 0.544 | 0.018885 |
+| mixed | ep_support_90 | 100 | ok | 2 | 2 | 1 | 0.639 | 0.057122 |
+| mixed | ep_support_90 | 200 | ok | 4 | 3 | 1.333 | 0.679 | 0.240942 |
+| mixed | ep_support_90 | 500 | ok | 8 | 7 | 1.143 | 0.8 | 1.546742 |
+| mixed | ep_support | 20 | ok | 1 | 1 | 1 | 0.301 | 0.002972 |
+| mixed | ep_support | 50 | ok | 1 | 1 | 1 | 0.599 | 0.019253 |
+| mixed | ep_support | 100 | ok | 2 | 2 | 1 | 0.639 | 0.058314 |
+| mixed | ep_support | 200 | ok | 4 | 3 | 1.333 | 0.679 | 0.267927 |
+| mixed | ep_support | 500 | ok | 8 | 7 | 1.143 | 0.8 | 1.604447 |
+| mixed | ep_support_weight | 20 | ok | 1 | 1 | 1 | 0.301 | 0.002929 |
+| mixed | ep_support_weight | 50 | ok | 2 | 1 | 2 | 0.3 | 0.025319 |
+| mixed | ep_support_weight | 100 | ok | 3 | 2 | 1.5 | 0.431 | 0.087027 |
+| mixed | ep_support_weight | 200 | ok | 4 | 3 | 1.333 | 0.607 | 0.258103 |
+| mixed | ep_support_weight | 500 | ok | 9 | 7 | 1.286 | 0.747 | 1.738962 |
 
 ### Cost of loading constraints
 
 Same instances, EP sorted by volume with vs without constraints. `increase_pct` = sum(bins with) / sum(bins without) − 1 over all n and seeds. Support threshold 70% is an assumption.
 
-| constraint | dist | instances | bins_without | bins_with | increase_pct | share_needing_more_bins |
+| variant | dist | instances | bins_ep_volume | bins_variant | increase_pct | share_needing_more_bins |
 |---|---|---|---|---|---|---|
-| ep_support | flat | 8 | 16 | 19 | 18.8 | 38% |
-| ep_support | long | 8 | 10 | 10 | 0 | 0% |
-| ep_support | mixed | 8 | 15 | 16 | 6.7 | 12% |
-| ep_support | uniform | 8 | 21 | 22 | 4.8 | 12% |
-| ep_support | all | 32 | 62 | 67 | 8.1 | 16% |
-| ep_support_weight | flat | 8 | 16 | 24 | 50 | 88% |
-| ep_support_weight | long | 8 | 10 | 13 | 30 | 38% |
-| ep_support_weight | mixed | 8 | 15 | 20 | 33.3 | 62% |
-| ep_support_weight | uniform | 8 | 21 | 27 | 28.6 | 75% |
-| ep_support_weight | all | 32 | 62 | 84 | 35.5 | 66% |
+| ep_support | flat | 25 | 86 | 93 | 8.1 | 28% |
+| ep_support | long | 25 | 40 | 42 | 5 | 8% |
+| ep_support | mixed | 25 | 78 | 81 | 3.8 | 12% |
+| ep_support | uniform | 25 | 116 | 120 | 3.4 | 16% |
+| ep_support | all | 100 | 320 | 336 | 5 | 16% |
+| ep_support_weight | flat | 25 | 86 | 115 | 33.7 | 92% |
+| ep_support_weight | long | 25 | 40 | 52 | 30 | 48% |
+| ep_support_weight | mixed | 25 | 78 | 96 | 23.1 | 72% |
+| ep_support_weight | uniform | 25 | 116 | 136 | 17.2 | 72% |
+| ep_support_weight | all | 100 | 320 | 399 | 24.7 | 71% |
+
+### Sensitivity of the support threshold
+
+Extra bins vs plain EP for support thresholds 50% / 70% / 90% (same instances, same method as above).
+
+| variant | dist | instances | bins_ep_volume | bins_variant | increase_pct | share_needing_more_bins |
+|---|---|---|---|---|---|---|
+| ep_support_50 | all | 100 | 320 | 328 | 2.5 | 8% |
+| ep_support | all | 100 | 320 | 336 | 5 | 16% |
+| ep_support_90 | all | 100 | 320 | 346 | 8.1 | 26% |
+
+| variant | dist | instances | bins_ep_volume | bins_variant | increase_pct | share_needing_more_bins |
+|---|---|---|---|---|---|---|
+| ep_support_50 | flat | 25 | 86 | 89 | 3.5 | 12% |
+| ep_support_50 | long | 25 | 40 | 42 | 5 | 8% |
+| ep_support_50 | mixed | 25 | 78 | 79 | 1.3 | 4% |
+| ep_support_50 | uniform | 25 | 116 | 118 | 1.7 | 8% |
+| ep_support | flat | 25 | 86 | 93 | 8.1 | 28% |
+| ep_support | long | 25 | 40 | 42 | 5 | 8% |
+| ep_support | mixed | 25 | 78 | 81 | 3.8 | 12% |
+| ep_support | uniform | 25 | 116 | 120 | 3.4 | 16% |
+| ep_support_90 | flat | 25 | 86 | 94 | 9.3 | 32% |
+| ep_support_90 | long | 25 | 40 | 44 | 10 | 16% |
+| ep_support_90 | mixed | 25 | 78 | 82 | 5.1 | 16% |
+| ep_support_90 | uniform | 25 | 116 | 126 | 8.6 | 40% |
+
+### How much of the Naive → EP gap is rotation?
+
+Extra bins vs EP with rotation (sort by volume). `ep_volume_norot` = same EP without rotation; `naive` = 3D Naive (no rotation). The gap between the two rows is the algorithm; the gap between `ep_volume_norot` and 0% is rotation.
+
+| variant | dist | instances | bins_ep_volume | bins_variant | increase_pct | share_needing_more_bins |
+|---|---|---|---|---|---|---|
+| ep_volume_norot | flat | 25 | 86 | 102 | 18.6 | 64% |
+| ep_volume_norot | long | 25 | 40 | 44 | 10 | 16% |
+| ep_volume_norot | mixed | 25 | 78 | 84 | 7.7 | 24% |
+| ep_volume_norot | uniform | 25 | 116 | 123 | 6 | 28% |
+| ep_volume_norot | all | 100 | 320 | 353 | 10.3 | 33% |
+| naive | flat | 25 | 86 | 156 | 81.4 | 80% |
+| naive | long | 25 | 40 | 192 | 380 | 92% |
+| naive | mixed | 25 | 78 | 295 | 278.2 | 96% |
+| naive | uniform | 25 | 116 | 325 | 180.2 | 96% |
+| naive | all | 100 | 320 | 968 | 202.5 | 91% |
 
 ### Box choice per order
 
@@ -225,7 +351,7 @@ Same instances, EP sorted by volume with vs without constraints. `increase_pct` 
 
 | algorithm | orders | void_median | void_mean | share_void_le_50 | share_split | runtime_ms_median | tries_mean |
 |---|---|---|---|---|---|---|---|
-| box_recommend | 200 | 0.47 | 0.466 | 55.0% | 0.0% | 0.549 | 2.24 |
-| box_naive | 200 | 0.867 | 0.843 | 0.5% | 27.5% | 0.078 | 2.84 |
+| box_recommend | 200 | 0.47 | 0.466 | 55.0% | 0.0% | 0.518 | 2.24 |
+| box_naive | 200 | 0.867 | 0.843 | 0.5% | 27.5% | 0.075 | 2.84 |
 
 Not comparable with CJ Logistics' published figures (different items and catalog).

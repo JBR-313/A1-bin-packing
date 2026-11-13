@@ -47,18 +47,27 @@ def section_a(df: pd.DataFrame, mode: str) -> list[str]:
     out = [f"## Experiment A — exact vs greedy (`{mode}` mode)", ""]
     rows = []
     for (alg, dist), g in df.groupby(["algorithm", "dist"], sort=False):
-        done = g[g.status.isin(["ok", "feasible"])]
-        proven = g[g.status == "ok"]
-        to = g[g.status == "timeout"]
+        # timeout rule: an n counts as finished only if NO rep timed out
+        per_n = g.groupby("n").status.agg(set)
+        all_ok = [n for n, s in per_n.items() if s == {"ok"}]
+        answered = [n for n, s in per_n.items() if "timeout" not in s]
+        gave_up = [n for n, s in per_n.items() if "timeout" in s]
+        last = max(answered) if answered else None
         rows.append({
             "algorithm": alg, "dist": dist,
-            "largest n proven optimal": int(proven.n.max()) if alg != "ffd" and len(proven) else "-",
-            "largest n with an answer": int(done.n.max()) if len(done) else "-",
-            "gave up at n": int(to.n.min()) if len(to) else "-",
-            "median runtime at that largest n (s)":
-                round(done[done.n == done.n.max()].runtime_s.median(), 4) if len(done) else "-",
+            "largest n, all reps proven optimal": max(all_ok) if alg != "ffd" and all_ok else "-",
+            "largest n, all reps answered": last if last is not None else "-",
+            "gave up at n": min(gave_up) if gave_up else "-",
+            "largest n tried": int(g.n.max()),
+            "median runtime at largest answered n (s)":
+                round(g[g.n == last].runtime_s.median(), 4) if last is not None else "-",
         })
-    out += ["### Where each method gives up", "", table(pd.DataFrame(rows)), ""]
+    out += ["### Where each method gives up", "",
+            "An n counts as finished only if every rep finished within the time limit "
+            "(one timeout → that n is `gave up`, larger n are not run). "
+            "`-` under *gave up* means it never timed out up to *largest n tried*; "
+            "DP is capped at n = 24 by memory (2^24 states), not by time.", "",
+            table(pd.DataFrame(rows)), ""]
 
     ex = df[df.algorithm.isin(["exhaustive", "dp", "mip"]) & (df.status == "ok")]
     per = ex.groupby(["dist", "n", "seed"]).agg(methods=("algorithm", "nunique"),
