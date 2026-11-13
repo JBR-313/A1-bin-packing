@@ -219,3 +219,14 @@ def test_box_random_orders_valid():
         # Not a theorem (EP is a heuristic too), but holds on these 40 fixed orders;
         # if it ever fails, look at the order before trusting experiment C numbers.
         assert rec.extra["box_volume"] <= nav.extra["box_volume"]
+
+
+def test_viewer_grid_layout_and_all_bins(tmp_path):
+    from packing.viz.view3d import PER_ROW, bin_offset, world_boxes, write_comparison
+    assert bin_offset(0, BOX) == (0, 0)
+    assert bin_offset(PER_ROW, BOX)[0] == 0 and bin_offset(PER_ROW, BOX)[1] > BOX[1]
+    items = gen_3d(120, "mixed", 0)
+    r = naive.pack(items, BOX)
+    assert r.num_bins > PER_ROW  # needs a second row
+    assert len(world_boxes(items, BOX, r.placements, r.num_bins)) == len(items)
+    write_comparison(tmp_path / "all.html", [("Naive", items, BOX, r)], "all bins")
