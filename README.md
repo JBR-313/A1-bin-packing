@@ -49,7 +49,7 @@ pytest                                              # all tests must pass
 ```bash
 python -m experiments.exp_a --quick   # 1D exact vs greedy        (~5 min)
 python -m experiments.exp_b --quick   # 1D heuristics at scale    (~20 s)
-python -m experiments.exp_c --quick   # 3D packing + box choice   (~30 s)
+python -m experiments.exp_c --quick   # 3D packing + box choice   (~45 s)
 python -m experiments.summary         # writes results/summary.md
 
 # presentation numbers: drop --quick (exp_a takes about an hour)
