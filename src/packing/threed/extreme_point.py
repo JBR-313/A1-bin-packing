@@ -118,8 +118,12 @@ class _Bin:
 
 def pack(items: list[Item3D], box: Box, sort: str = "volume", allow_rotation: bool = True,
          support_ratio: float | None = None, heavy_below: bool = False,
-         max_bins: int | None = None) -> Result:
-    """Pack all items. With max_bins set, return status "infeasible" if more are needed."""
+         max_bins: int | None = None, record_failure: bool = False) -> Result:
+    """Pack all items. With max_bins set, return status "infeasible" if more are needed.
+
+    record_failure=True (only matters when infeasible): the result also carries the items
+    placed before the failure (`placements`, `order`) and the item that did not fit
+    (`extra["failed_item"]`), for the box-search animation. bins stays None either way."""
     for i, it in enumerate(items):
         if not fits_empty(it, box, allow_rotation):
             raise ValueError(f"item {i} {it[:3]} does not fit container {box}")
@@ -137,7 +141,12 @@ def pack(items: list[Item3D], box: Box, sort: str = "volume", allow_rotation: bo
                 break
         else:
             if max_bins is not None and len(bins) >= max_bins:
-                return Result(None, INFEASIBLE)
+                if not record_failure:
+                    return Result(None, INFEASIBLE)
+                done = order[:order.index(i)]
+                partial = sorted((p for b in bins for p in b.placed), key=lambda p: p.item_id)
+                return Result(None, INFEASIBLE, placements=partial, order=done,
+                              extra={"failed_item": i, "sort": sort})
             b = _Bin(len(bins), box)
             bins.append(b)
             # the floor point (0,0,0) always works in an empty bin (z = 0: no constraints)

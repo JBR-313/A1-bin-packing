@@ -44,6 +44,9 @@ class Result:
     extra: dict = field(default_factory=dict)
     placements: list[Placement] | None = None
     order: list[int] | None = None  # 3D: item ids in the order they were placed (animation)
+    # box recommendation with trace=True: one dict per attempt (box, rule, outcome, partial
+    # placements). Kept out of `extra` because extra is written to the CSV as JSON.
+    trace: list[dict] | None = None
 
     @property
     def num_bins(self) -> int | None:

@@ -328,3 +328,67 @@ def test_viewer_panel_grid_2x2():
     d1, d2, d3 = fig.layout.scene.domain, fig.layout.scene2.domain, fig.layout.scene3.domain
     assert d1.y == d2.y and d1.x != d2.x          # same row
     assert d3.x == d1.x and d3.y[1] < d1.y[0]      # next row, same column
+
+
+# ---------------------------------------------------------------- box search trace
+def _orders(k=60):
+    return [gen_order(oid, 0) for oid in range(k)]
+
+
+def test_trace_does_not_change_results():
+    for items in _orders(40):
+        for f in (br.recommend, br.naive_box):
+            a, b = f(items, CATALOG), f(items, CATALOG, trace=True)
+            assert a.extra == b.extra and a.placements == b.placements
+            assert a.trace is None and b.trace
+
+
+def test_trace_matches_final_result():
+    for items in _orders():
+        for f, rot in ((br.recommend, True), (br.naive_box, False)):
+            r = f(items, CATALOG, trace=True)
+            last = r.trace[-1]
+            assert last["outcome"] == "ok" and last["box"] == r.extra["box"]
+            assert last["placements"] == r.placements
+            assert all(t["outcome"] != "ok" for t in r.trace[:-1])
+            # attempts counted in `tries` = non-skipped attempts
+            assert sum(t["outcome"] != "skip" for t in r.trace) == r.extra["tries"]
+            # boxes are tried from small to large
+            vols = [t["dims"][0] * t["dims"][1] * t["dims"][2] for t in r.trace]
+            assert vols == sorted(vols)
+
+
+def test_failed_attempts_are_valid_partial_packings():
+    from packing.threed.geometry import fits_empty
+    seen = 0
+    for items in _orders():
+        for f, rot in ((br.recommend, True), (br.naive_box, False)):
+            for t in f(items, CATALOG, trace=True).trace:
+                if t["outcome"] != "fail":
+                    continue
+                seen += 1
+                part = t["placements"]
+                ids = {p.item_id for p in part}
+                assert t["failed_item"] not in ids and len(ids) == len(part)
+                assert sorted(ids) == sorted(t["order"])        # order = items placed so far
+                assert all(p.bin_id == 0 for p in part)          # all in the one box
+                for p in part:                                   # inside, no overlap
+                    assert p.x + p.w <= t["dims"][0] and p.y + p.d <= t["dims"][1] \
+                        and p.z + p.h <= t["dims"][2]
+                for i in range(len(part)):
+                    for j in range(i + 1, len(part)):
+                        assert not overlaps(part[i], part[j])
+                assert fits_empty(items[t["failed_item"]], t["dims"], rot)  # fits alone
+    assert seen > 0
+
+
+def test_multistart_hand_example():
+    # order 1 of the experiment seed: volume order fails in the 30x20x15 box, height fits
+    from experiments import config as cfg
+    items = gen_order(1, cfg.BASE_SEED, cfg.ORDER_ITEMS, cfg.ORDER_DIM_RANGE, cfg.C3_WEIGHT_RANGE)
+    t = br.recommend(items, CATALOG, trace=True).trace
+    assert [(x["dims"], x["rule"], x["outcome"]) for x in t] == [
+        ((20, 15, 10), None, "skip"),
+        ((30, 20, 15), "volume", "fail"),
+        ((30, 20, 15), "height", "ok")]
+    assert br.recommend(items, CATALOG, rules=("volume",)).extra["box"] > 1  # one rule: bigger box
