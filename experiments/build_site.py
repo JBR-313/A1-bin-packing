@@ -18,6 +18,8 @@ from experiments import config as cfg
 from experiments.common import CSV_DIR, ROOT
 from experiments.summary import (b_table, box_table, c_table, exact_agreement, ffd_ratio_table,
                                  gives_up_table)
+from packing.viz.animate3d import ANIM_HEIGHT
+from packing.viz.view3d import figure_height
 from packing.viz.plots import (CONSTRAINED, MAIN_C, ROTATION, STYLE, SUPPORT_SENSITIVITY,
                                extra_bins)
 
@@ -59,7 +61,12 @@ def figure(src: str, alt: str, caption: str) -> str:
             f"<figcaption>{caption}</figcaption></figure>")
 
 
-def viewer(src: str, title: str, caption: str, height: int = 620) -> str:
+ONE_ROW = figure_height(1) + 20   # iframe height for 1-2 panel viewers / animations
+TWO_ROWS = figure_height(2) + 20  # 2x2 viewers
+ANIM = ANIM_HEIGHT + 20            # animations (scene row + buttons + slider)
+
+
+def viewer(src: str, title: str, caption: str, height: int = ONE_ROW) -> str:
     return (f'<figure class="viewer"><div class="vhead"><span>{esc(title)}</span>'
             f'<a href="{src}" target="_blank" rel="noopener">Open full screen ↗</a></div>'
             f'<iframe src="{src}" title="{esc(title)}" loading="lazy" style="height:{height}px">'
@@ -260,7 +267,8 @@ trying all 6 rotations. It goes back to fill gaps.</li>
 </ul>
 {viewer(f"{VIEW}/anim_naive_vs_ep_{MODE}.html", "Animation: same 60 items, two recipes",
         "Press <strong>▶ Play</strong>. Items drop in the order each algorithm places them "
-        "(Naive: arrival order; EP: largest first). Colour = weight. Drag to rotate, scroll to zoom.")}
+        "(Naive: arrival order; EP: largest first). Colour = weight. Drag to rotate, scroll to zoom.",
+        height=ANIM)}
 {figure(f"{FIG}/exp_c_bins_over_lb_{MODE}.png", "3D bins over lower bound",
         "<strong>How to read:</strong> median bins ÷ volume lower bound; lower is better.")}
 <p><strong>Result.</strong> Over all {int(rot[(rot.variant == 'naive') & (rot.dist == 'all')].instances.iloc[0])}
@@ -310,7 +318,7 @@ Support hurts {worst_support} items most; heavy-below hurts {worst_heavy} items 
                                          "share_needing_more_bins": "instances with more bins"})}
 {viewer(f"{VIEW}/anim_constraints_{MODE}.html", "Animation: no rules vs heaviest first + rules",
         "Colour = weight (dark = heavy). On the right, no item ever rests on a lighter one and "
-        "nothing overhangs by more than 30%.")}
+        "nothing overhangs by more than 30%.", height=ANIM)}
 <h3>Is 70% a magic number?</h3>
 <p>No — it is our assumption, so we also ran 50% and 90% on the same instances. The cost grows
 steadily: +{s70.get('ep_support_50', float('nan')):.1f}% at 50%, +{s70.get('ep_support', float('nan')):.1f}% at
@@ -319,7 +327,7 @@ steadily: +{s70.get('ep_support_50', float('nan')):.1f}% at 50%, +{s70.get('ep_s
                                                 "share_needing_more_bins": "instances with more bins"})}
 {viewer(f"{VIEW}/exp_c_constraints_{MODE}.html", "3D viewer: rules on / off (100 items)",
         "Four final packings of the same items: no rules, support, support + heavy-below, "
-        "and the same rules loaded heaviest first.")}
+        "and the same rules loaded heaviest first.", height=TWO_ROWS)}
 </section>""")
 
     # ------------------------------------------------------------ 5. box choice
@@ -351,8 +359,8 @@ largest box and has to split the order ({nav.share_split} of orders).</p>
                                             "runtime_ms_median": "ms per order",
                                             "tries_mean": "packing attempts"})}
 {viewer(f"{VIEW}/exp_c_boxes_{MODE}.html", "3D viewer: two orders, naive vs recommended box",
-        "Two orders where the recommendation chose a smaller box. Panel titles show box size and void ratio.",
-        height=560)}
+        "Two orders where the recommendation chose a smaller box (one order per row). Panel titles show "
+        "box size and void ratio.", height=TWO_ROWS)}
 </section>""")
 
     # ------------------------------------------------------------ 6. method

@@ -86,25 +86,48 @@ def world_boxes(items: list[Item3D], box: Box, placements, shown: int):
     return out
 
 
-def write_comparison(path: Path, panels: list[tuple[str, list[Item3D], Box, Result]],
-                     title: str, max_bins: int | None = None) -> Path:
-    """panels: (title, items, container, result). One 3D scene per panel.
-    max_bins=None shows every bin (grid of PER_ROW per row)."""
-    fig = make_subplots(rows=1, cols=len(panels), specs=[[{"type": "scene"}] * len(panels)],
+def panel_grid(k: int) -> tuple[int, int]:
+    """(rows, cols) for k panels: one row up to 2 panels, otherwise 2 columns (2x2, 3x2...).
+    Four panels in one row make each scene tall and thin; a 2-column grid keeps them wide."""
+    if k <= 2:
+        return 1, k
+    return -(-k // 2), 2
+
+
+ROW_HEIGHT = 560  # px per row of panels
+
+
+def figure_height(rows: int) -> int:
+    return 90 + ROW_HEIGHT * rows
+
+
+def build_comparison(panels: list[tuple[str, list[Item3D], Box, Result]], title: str,
+                     max_bins: int | None = None) -> go.Figure:
+    """panels: (title, items, container, result). One 3D scene per panel, laid out by
+    panel_grid(). max_bins=None shows every bin (grid of PER_ROW per row)."""
+    rows, cols = panel_grid(len(panels))
+    fig = make_subplots(rows=rows, cols=cols, specs=[[{"type": "scene"}] * cols] * rows,
                         subplot_titles=[f"{t}<br>{r.num_bins} bins" for t, _, _, r in panels],
-                        horizontal_spacing=0.02)
-    for c, (_, items, box, res) in enumerate(panels, start=1):
+                        horizontal_spacing=0.02, vertical_spacing=0.06)
+    for k, (_, items, box, res) in enumerate(panels):
+        r, c = k // cols + 1, k % cols + 1
         shown = res.num_bins if max_bins is None else min(res.num_bins, max_bins)
         wmax = max((it[3] for it in items), default=1)
         for tr in box_traces(world_boxes(items, box, res.placements, shown), wmax,
                              container_outlines(box, shown)):
-            fig.add_trace(tr, row=1, col=c)
-        scene = "scene" if c == 1 else f"scene{c}"
+            fig.add_trace(tr, row=r, col=c)
+        scene = "scene" if k == 0 else f"scene{k + 1}"
         fig.layout[scene].update(aspectmode="data", xaxis_title="x", yaxis_title="y",
                                  zaxis_title="z")
     note = "all bins shown" if max_bins is None else f"first {max_bins} bins shown"
     fig.update_layout(title=f"{title}  ({note}; colour = weight)",
-                      height=700, margin=dict(l=0, r=0, t=90, b=0))
+                      height=figure_height(rows), margin=dict(l=0, r=0, t=90, b=0))
+    return fig
+
+
+def write_comparison(path: Path, panels: list[tuple[str, list[Item3D], Box, Result]],
+                     title: str, max_bins: int | None = None) -> Path:
+    fig = build_comparison(panels, title, max_bins)
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.write_html(path, include_plotlyjs="cdn")

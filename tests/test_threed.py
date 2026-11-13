@@ -315,3 +315,16 @@ def test_animation_slider_steps_are_complete_states():
         assert 1 in fr.traces  # landing frame carries the full placed set
         assert len(fr.data[list(fr.traces).index(1)].x) == 8 * (k + 1)
         assert TRACES_PER_PANEL == 4
+
+
+def test_viewer_panel_grid_2x2():
+    from packing.viz.view3d import build_comparison, panel_grid
+    assert panel_grid(1) == (1, 1) and panel_grid(2) == (1, 2)
+    assert panel_grid(3) == (2, 2) and panel_grid(4) == (2, 2) and panel_grid(5) == (3, 2)
+    items = gen_3d(20, "mixed", 0)
+    r = ep.pack(items, BOX)
+    fig = build_comparison([(f"p{k}", items, BOX, r) for k in range(4)], "grid")
+    # four scenes: two side by side on top, two below
+    d1, d2, d3 = fig.layout.scene.domain, fig.layout.scene2.domain, fig.layout.scene3.domain
+    assert d1.y == d2.y and d1.x != d2.x          # same row
+    assert d3.x == d1.x and d3.y[1] < d1.y[0]      # next row, same column

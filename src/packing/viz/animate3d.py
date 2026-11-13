@@ -26,6 +26,7 @@ from packing.types import Box, Item3D, Result
 from packing.viz.view3d import _EDGES, _TRI_I, _TRI_J, _TRI_K, _corners, bin_offset
 
 DROP_HEIGHT = 0.6  # items start this many container heights above their final spot
+ANIM_HEIGHT = 720  # px; one row of scenes plus the play buttons and slider
 TRACES_PER_PANEL = 4  # 0: outlines (static), 1: placed items, 2: their edges, 3: falling item
 
 
@@ -134,7 +135,7 @@ def build_animation(panels: list[tuple[str, list[Item3D], Box, Result]], title: 
                         {"frame": {"duration": 0, "redraw": True}, "mode": "immediate"}])
              for k in range(n)]  # landing frames only: they carry the full placed state
     fig.update_layout(
-        title=f"{title}  (colour = weight)", height=700, margin=dict(l=0, r=0, t=90, b=0),
+        title=f"{title}  (colour = weight)", height=ANIM_HEIGHT, margin=dict(l=0, r=0, t=90, b=0),
         updatemenus=[dict(type="buttons", direction="left", x=0.0, y=0.0, xanchor="left",
                           yanchor="top", buttons=[play, pause])],
         sliders=[dict(active=0, steps=steps, x=0.15, len=0.85, y=0.0,
