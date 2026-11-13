@@ -168,3 +168,14 @@ def test_constraints_never_violated(dist):
         validate_3d(items, BOX, r.placements)
         assert support_violations(r.placements, 0.7) == []
         assert weight_violations(items, r.placements) == []
+
+
+# ---------------------------------------------------------------- viewer
+def test_viewer_writes_html(tmp_path):
+    from packing.viz.view3d import write_comparison
+    items = gen_3d(30, "mixed", 0)
+    panels = [("Naive", items, BOX, naive.pack(items, BOX)), ("EP", items, BOX, ep.pack(items, BOX))]
+    out = write_comparison(tmp_path / "v.html", panels, "test")
+    text = out.read_text()
+    assert "Mesh3d" in text or "mesh3d" in text
+    assert text.count("scene") >= 2
