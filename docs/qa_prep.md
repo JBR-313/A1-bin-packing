@@ -120,6 +120,19 @@ On our distributions, barely: volume, height and base-area sorting give nearly i
 counts. → summary C rows `ep_volume / ep_height / ep_area`. The box recommendation still tries
 all three (multi-start), because on a single small order a different rule can fit a smaller box.
 
+### Q13b. Why does the box recommendation try three sort orders ("multi-start")?
+EP is greedy: it places items one by one in a fixed order and never moves an item again, so the
+result depends on that order. In the same box, "largest volume first" can put a big item in the
+middle and split the floor, while "tallest first" stands it against a wall and everything fits.
+Multi-start = run the same heuristic from several starting orders and keep the best. Each attempt
+on 3–15 items costs well under a millisecond, so extra attempts are almost free, while a
+one-size-smaller box saves material and shipping volume.
+Measured on the same orders with only one rule vs all three → summary C "Multi-start vs a single
+sort rule" (median void, share within the 50% rule, attempts per order, orders where all three
+picked a smaller box). Multi-start can never pick a *bigger* box than any single rule, because it
+also tries that rule in every box — the table's last column checks this (always 0).
+Show the animation `anim_boxes_default.html`: a red item marks the attempt that failed.
+
 ### Q14. What is the difference between your box recommendation and CJ Logistics' system?
 Ours is a simplified version inspired by the same idea (pick the box per order automatically).
 We do not know their algorithm; our items, catalog and orders are synthetic. We do **not**

@@ -17,8 +17,9 @@ import pandas as pd
 from experiments import config as cfg
 from experiments.common import CSV_DIR, ROOT
 from experiments.summary import (b_table, box_table, c_table, exact_agreement, ffd_ratio_table,
-                                 gives_up_table)
+                                 gives_up_table, multistart_table)
 from packing.viz.animate3d import ANIM_HEIGHT
+from packing.viz.animate_boxes import box_anim_height
 from packing.viz.view3d import figure_height
 from packing.viz.plots import (CONSTRAINED, MAIN_C, ROTATION, STYLE, SUPPORT_SENSITIVITY,
                                extra_bins)
@@ -137,6 +138,10 @@ def build() -> str:
     worst_support = cc_d["ep_support"].idxmax()
     worst_heavy = cc_d["ep_support_weight"].idxmax()
     bx = box_table(c)
+    ms = multistart_table(c)
+    ms_single = ms[ms.method != "box_recommend"]
+    ms_best_single = ms_single.loc[ms_single.void_median.idxmin()]
+    ms_le50 = ms_single.share_void_le_50.str.rstrip("%").astype(float)
     rec = bx[bx.algorithm == "box_recommend"].iloc[0]
     nav = bx[bx.algorithm == "box_naive"].iloc[0]
 
@@ -341,7 +346,7 @@ packaging aim for at most {cfg.VOID_LIMIT:.0%} empty space.</p>
 <li><strong>Naive box choice</strong>: the smallest box with enough total volume, stacked in arrival
 order without rotation; if it does not fit, try the next box.</li>
 <li><strong>Box recommendation</strong>: try boxes from small to large; in each, run EP with all three sort
-rules and rotation (a “multi-start”); take the first box that holds the whole order.</li>
+rules and rotation (a “multi-start”, explained below); take the first box that holds the whole order.</li>
 <li>Inspired by the idea behind CJ Logistics’ LoIS O’Pack; our items and catalog are synthetic, so our
 numbers are <em>not</em> comparable with theirs.</li>
 </ul>
@@ -358,6 +363,33 @@ largest box and has to split the order ({nav.share_split} of orders).</p>
                                             "share_split": "split into >1 box",
                                             "runtime_ms_median": "ms per order",
                                             "tries_mean": "packing attempts"})}
+<h3>Watch the search</h3>
+{viewer(f"{VIEW}/anim_boxes_{MODE}.html", "Animation: searching for the smallest box",
+        "Two orders, one per row. Left: the naive rule; right: the recommendation. Each attempt drops the "
+        "items into a box; a <span style='color:#e5383b'>red</span> item is the one that did not fit "
+        "(✗), and the search moves on — to the next sort rule in the same box, or to the next box. "
+        "These orders were picked automatically: one sort rule failed in the box that another rule "
+        "then filled.", height=box_anim_height(2) + 20)}
+<h3>Why try three sort orders? (multi-start)</h3>
+<p>Extreme Point is <em>greedy</em>: it places items one by one in a fixed order and never moves an
+item again. So the order matters — a big item placed first in the middle can split the floor so the
+flat items no longer fit, while “tallest first” might stand it against a wall and leave room.
+<strong>Multi-start</strong> means running the same heuristic several times from different starting
+orders and keeping the best. For an order of 3–15 items one attempt takes well under a millisecond,
+so a few extra attempts are almost free, while a one-size-smaller box saves material, shipping volume
+and keeps the order within the packaging rule.</p>
+<p><strong>Measured on the same {int(rec.orders)} orders:</strong> with a single sort rule, the best
+rule ({ms_best_single["sort rules"]}) reaches a median void of {ms_best_single.void_median:.1%} and meets
+the {cfg.VOID_LIMIT:.0%} rule for {ms_le50.min():.1f}–{ms_le50.max():.1f}% of orders depending on the rule.
+Trying all three gives {rec.void_median:.1%} and {rec.share_void_le_50}, at an average of
+{ms[ms.method == "box_recommend"].tries_mean.iloc[0]:.2f} attempts per order. Multi-start picked a
+smaller box than a single rule in {int(ms_single.orders_multistart_smaller.min())}–{int(ms_single.orders_multistart_smaller.max())}
+orders and a larger one in none — it cannot, because it also tries that single rule in every box.</p>
+{table(ms.drop(columns=["method"]), rename={"void_median": "median void",
+                                           "share_void_le_50": f"void ≤ {cfg.VOID_LIMIT:.0%}",
+                                           "tries_mean": "attempts per order",
+                                           "orders_multistart_smaller": "orders where all-3 picks a smaller box",
+                                           "orders_multistart_larger": "… a larger box"})}
 {viewer(f"{VIEW}/exp_c_boxes_{MODE}.html", "3D viewer: two orders, naive vs recommended box",
         "Two orders where the recommendation chose a smaller box (one order per row). Panel titles show "
         "box size and void ratio.", height=TWO_ROWS)}
